@@ -145,7 +145,9 @@ async function api1(path,params){
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function load(){
   if(busy)return;busy=true;$("#rf")&&$("#rf").classList.add("spin");
-  const R0=range();const D0=LS.get("pav-desde");const q={start:D0&&D0>R0.qs?D0:R0.qs,end:R0.qe};
+  const R0=range();
+    /* GoatCounter guarda las visitas por HORA: si se pide desde las 11:02, la hora de las 11 queda fuera entera. Se redondea a la hora en punto */
+    let D0=LS.get("pav-desde");if(D0){const d=new Date(D0);d.setMinutes(0,0,0);D0=d.toISOString().replace(/\.\d+Z$/,"Z")}const q={start:D0&&D0>R0.qs?D0:R0.qs,end:R0.qe};
   try{
     const total=await api("/stats/total",q);await wait(400);
     let hits=[],more=true,guard=0;
@@ -264,7 +266,7 @@ function render(){
   }
 h+='<p class="priv">Datos anónimos: sin nombres, sin cookies y sin ubicación exacta.</p></div>';
   $("#root").innerHTML=h;bind()}
-function fdesde(){const d=new Date(LS.get("pav-desde"));return d.getDate()+" "+MES[d.getMonth()]+" a las "+pad(d.getHours())+":"+pad(d.getMinutes())}
+function fdesde(){const d=new Date(LS.get("pav-desde"));d.setMinutes(0,0,0);return d.getDate()+" "+MES[d.getMonth()]+" a las "+pad(d.getHours())+":"+pad(d.getMinutes())}
 function sizeName(s){const m={phone:"Celular",largephone:"Celular grande",tablet:"Tablet",desktop:"Computador",desktophd:"Computador grande",unknown:"Otra"};return m[String(s).toLowerCase()]||s}
 function detail(a){
   const cat={tab:[],stop:[],go:[],time:{},style:[],other:[]};
