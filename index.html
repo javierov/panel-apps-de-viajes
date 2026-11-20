@@ -239,7 +239,7 @@ function render(){
     if(op)h+=`<div class="ad">${detail(a)}</div>`;h+="</div>"});
   h+="</div></section>";
   const D=demos();
-  h+=`<section class="card"><div class="ch"><h2>Demos enviadas</h2><em>enlaces con ?de=</em></div><div class="cb">`;
+  h+=`<section class="card"><div class="ch"><h2>Demos y promoción</h2><em>enlaces con ?de=</em></div><div class="cb">`;
   if(!D.length)h+=`<p class="empty">Nadie ha abierto todavía un enlace de demo en este periodo.</p><p class="note">Manda tus apps con <b>?de=nombre</b> al final del enlace, por ejemplo …/demo-escapada-a-toledo/?de=cata</p>`;
   D.forEach((p,i)=>{h+=`<div class="demo-p"><div class="dp-h"><span class="av" style="background:${COLS[(i+3)%COLS.length]}">${esc(p.who[0].toUpperCase())}</span><span class="an"><b>${esc(p.who[0].toUpperCase()+p.who.slice(1))}</b><small>Última vez ${p.last?ago(p.last):"—"}</small></span></div>`;
     Object.values(p.apps).forEach(a=>{const top=a.acts.sort((x,y)=>y[1]-x[1]).slice(0,6);
