@@ -113,7 +113,9 @@ let per=LS.get(K.per)||"7",DATA=null,busy=false,timer=null,demo=false,lastErr=""
 /* ---------- fechas ---------- */
 const pad=n=>String(n).padStart(2,"0");
 const ymd=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
-function range(){const p=PER.find(x=>x[0]===per)||PER[1];const e=new Date();const s=new Date();s.setDate(s.getDate()-p[2]);return{start:ymd(s),end:ymd(e),days:p[2]+1}}
+function range(){const p=PER.find(x=>x[0]===per)||PER[1];const e=new Date();const s=new Date();s.setDate(s.getDate()-p[2]);s.setHours(0,0,0,0);
+  const iso=d=>d.toISOString().replace(/\.\d+Z$/,"Z");/* fechas con hora: con solo la fecha, GoatCounter deja fuera el día de hoy */
+  return{start:ymd(s),end:ymd(e),days:p[2]+1,qs:iso(s),qe:iso(new Date(e.getTime()+60000))}}
 const DOW=["dom","lun","mar","mié","jue","vie","sáb"];
 const MES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 const dlabel=s=>{const d=new Date(s+"T12:00:00");return DOW[d.getDay()]+" "+d.getDate()};
@@ -131,12 +133,12 @@ async function api(path,params){
   const r=await fetch(u,{headers:{Authorization:"Bearer "+LS.get(K.tok),"Content-Type":"application/json"}});
   if(r.status===401||r.status===403)throw new Error("token");
   if(r.status===429){await new Promise(r=>setTimeout(r,1200));return api(path,params)}
-  if(!r.ok)throw new Error("HTTP "+r.status);
+  if(!r.ok)throw new Error("HTTP "+r.status+" en "+path);
   return r.json()}
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function load(){
   if(busy)return;busy=true;$("#rf")&&$("#rf").classList.add("spin");
-  const {start,end}=range();const q={start,end};
+  const R0=range();const q={start:R0.qs,end:R0.qe};
   try{
     const total=await api("/stats/total",q);await wait(260);
     let hits=[],more=true,guard=0;
@@ -227,10 +229,10 @@ function render(){
     if(op)h+=`<div class="ad">${detail(a)}</div>`;h+="</div>"});
   h+="</div></section>";
   /* desde dónde y equipos */
-  const S=DATA.side;const tl=x=>(x||[]).map(s=>[(s.name||s.id||"?"),s.count]);const RN=(()=>{try{return new Intl.DisplayNames(["es"],{type:"region"})}catch(e){return null}})();const tloc=x=>(x||[]).map(s=>{const c=String(s.id||"").split("-")[0].toUpperCase();let n=s.name||s.id||"?";try{if(RN&&/^[A-Z]{2}$/.test(c))n=RN.of(c)}catch(e){}return[(flag(c)+n).trim(),s.count]});
+  const S=DATA.side;const tl=x=>(x||[]).filter(s=>s.count>0).map(s=>[(s.name||s.id||"?"),s.count]);const RN=(()=>{try{return new Intl.DisplayNames(["es"],{type:"region"})}catch(e){return null}})();const tloc=x=>(x||[]).filter(s=>s.count>0).map(s=>{const c=String(s.id||"").split("-")[0].toUpperCase();let n=s.name||s.id||"?";try{if(RN&&/^[A-Z]{2}$/.test(c))n=RN.of(c)}catch(e){}return[(flag(c)+n).trim(),s.count]});
   h+=`<section class="card"><div class="ch"><h2>Desde dónde</h2><em>país aproximado</em></div><div class="cb">${barsList(tloc(S.locations),"var(--ac2)")}</div></section>`;
   h+=`<section class="card"><div class="ch"><h2>Con qué equipo</h2></div><div class="cb"><div class="list2"><div><h3 class="note" style="margin:0 0 8px">Sistema</h3>${barsList(tl(S.systems),"var(--ok)")}</div><div><h3 class="note" style="margin:0 0 8px">Navegador</h3>${barsList(tl(S.browsers),"#c9a7ff")}</div></div>
-    <h3 class="note" style="margin:14px 0 8px">Pantalla</h3>${barsList((S.sizes||[]).map(s=>[sizeName(s.name||s.id),s.count]),"#6fd6e8")}</div></section>`;
+    <h3 class="note" style="margin:14px 0 8px">Pantalla</h3>${barsList((S.sizes||[]).filter(s=>s.count>0).map(s=>[sizeName(s.name||s.id),s.count]),"#6fd6e8")}</div></section>`;
   h+='<p class="priv">Datos anónimos: sin nombres, sin cookies y sin ubicación exacta.</p></div>';
   $("#root").innerHTML=h;bind()}
 function sizeName(s){const m={phone:"Celular",largephone:"Celular grande",tablet:"Tablet",desktop:"Computador",desktophd:"Computador grande",unknown:"Otra"};return m[String(s).toLowerCase()]||s}
