@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Panel Apps de Viajes</title>
+<meta name="theme-color" content="#0b0c0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Panel Viajes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icono-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+@font-face{font-family:Marcellus;src:url(fonts/marcellus.woff2) format("woff2");font-display:swap}
+:root{--bg:#0b0c0f;--card:#14161c;--card2:#1b1e26;--line:#262a34;--tx:#eef1f6;--soft:#c4cbd7;--mute:#8d96a6;--ac:#8fb4ff;--ac2:#f2c46d;--ok:#5fd39a;--band:#3a4660;
+  --f:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 var(--f);padding:env(safe-area-inset-top) 0 calc(28px + env(safe-area-inset-bottom))}
+button{font:inherit;color:inherit}
+.wrap{max-width:560px;margin:0 auto;padding:0 16px}
+header{position:sticky;top:0;z-index:5;background:rgb(11 12 15/.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.hd{display:flex;align-items:center;gap:10px;padding:12px 16px;max-width:560px;margin:0 auto}
+.hd h1{font:400 23px/1.1 Marcellus,serif;margin:0;flex:1;letter-spacing:.2px}
+.hd small{display:block;font:12.5px var(--f);color:var(--mute);margin-top:3px}
+.live{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:6px;vertical-align:1px;box-shadow:0 0 0 0 rgb(95 211 154/.6);animation:pulse 2s infinite}
+.live.off{background:var(--mute);animation:none}
+@keyframes pulse{70%{box-shadow:0 0 0 8px rgb(95 211 154/0)}100%{box-shadow:0 0 0 0 rgb(95 211 154/0)}}
+.ib{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;cursor:pointer}
+.ib svg{width:20px;height:20px}
+.ib.spin svg{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 0 4px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px}
+.seg button{border:0;background:none;border-radius:10px;padding:9px 0;font-size:15px;color:var(--soft);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--card2);color:var(--tx);font-weight:600;box-shadow:inset 0 0 0 1px var(--line)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 10px}
+.kpi b{display:block;font-size:28px;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi span{font-size:13px;color:var(--mute)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;margin:12px 0;overflow:hidden}
+.ch{display:flex;align-items:center;gap:10px;padding:12px 14px 4px}
+.ch h2{font:400 20px/1.2 Marcellus,serif;margin:0;flex:1}
+.ch em{font-style:normal;font-size:13px;color:var(--mute)}
+.cb{padding:6px 14px 14px}
+.chart{width:100%;height:150px;display:block}
+.chart text{fill:var(--mute);font:11px var(--f)}
+.note{font-size:13px;color:var(--mute);margin:6px 0 0}
+.app{border-top:1px solid var(--line)}
+.app:first-child{border-top:0}
+.ah{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;background:none;border:0;text-align:left;cursor:pointer}
+.av{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font:400 19px Marcellus,serif;flex:none;color:#0b0c0f}
+.an{flex:1;min-width:0}
+.an b{display:block;font-size:16.5px;line-height:1.25}
+.an small{font-size:13px;color:var(--mute)}
+.an small i{font-style:normal;color:var(--ok)}
+.am{text-align:right;font-variant-numeric:tabular-nums}
+.am b{font-size:20px;display:block;line-height:1}
+.am span{font-size:12px;color:var(--mute)}
+.spark{width:52px;height:26px;flex:none}
+.chev{width:18px;height:18px;flex:none;color:var(--mute);transition:transform .2s}
+.ah[aria-expanded=true] .chev{transform:rotate(180deg)}
+.ad{padding:0 14px 14px}
+.ad h3{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--mute);margin:14px 0 8px;font-weight:600}
+.bars{display:grid;gap:7px}
+.bar{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:14.5px}
+.bar .bl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--soft)}
+.bar .bv{font-variant-numeric:tabular-nums;font-weight:600}
+.bar .bt{grid-column:1/-1;height:7px;border-radius:4px;background:var(--card2);overflow:hidden}
+.bar .bt i{display:block;height:100%;border-radius:4px;background:var(--ac);transform-origin:left;animation:grow .6s ease-out}
+@keyframes grow{from{transform:scaleX(0)}}
+.steps{display:flex;gap:6px}
+.step{flex:1;text-align:center;background:var(--card2);border-radius:10px;padding:8px 2px}
+.step b{display:block;font-size:19px}.step span{font-size:12px;color:var(--mute)}
+.step.on{background:rgb(95 211 154/.16);box-shadow:inset 0 0 0 1px rgb(95 211 154/.45)}
+.heat{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin-top:4px}
+.heat i{aspect-ratio:1/2.2;border-radius:3px;background:var(--card2)}
+.hl{display:flex;justify-content:space-between;font-size:11px;color:var(--mute);margin-top:4px}
+.empty{color:var(--mute);font-size:14.5px;padding:4px 0}
+.list2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.setup{max-width:520px;margin:40px auto;padding:0 18px}
+.setup h1{font:400 30px/1.15 Marcellus,serif;margin:0 0 8px}
+.setup p{color:var(--soft)}
+.setup ol{color:var(--soft);padding-left:22px}
+.setup input{width:100%;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--tx);font:15px ui-monospace,monospace;margin:8px 0 12px}
+.btn{display:block;width:100%;padding:14px;border-radius:14px;border:0;background:var(--ac);color:#0b0c0f;font-weight:700;font-size:16px;cursor:pointer}
+.btn.g{background:none;color:var(--soft);border:1px solid var(--line);margin-top:10px;font-weight:500}
+.err{background:rgb(255 107 107/.12);border:1px solid rgb(255 107 107/.4);color:#ffb3b3;border-radius:12px;padding:10px 12px;font-size:14px;margin:12px 0}
+.demo{background:rgb(242 196 109/.14);border:1px solid rgb(242 196 109/.4);color:var(--ac2);border-radius:12px;padding:8px 12px;font-size:13.5px;margin:12px 0 0}
+.priv{font-size:12.5px;color:var(--mute);text-align:center;margin:18px 0 0}
+.sheet{position:fixed;inset:0;z-index:20;background:rgb(0 0 0/.55);display:grid;align-items:end}
+.sheet>div{background:var(--card);border-top-left-radius:20px;border-top-right-radius:20px;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-width:560px;width:100%;margin:0 auto}
+.sheet h2{font:400 22px Marcellus,serif;margin:0 0 10px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+/* Panel Apps de Viajes: lee las estadísticas anónimas de GoatCounter de las apps de Javier.
+   El token se guarda solo en este celular (localStorage) y nunca está en el código. */
+const GC="https://javierov.goatcounter.com/api/v0";
+const K={tok:"pav-token",per:"pav-per",open:"pav-open"};
+const LS={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const COLS=["#8fb4ff","#f2c46d","#5fd39a","#ff9f8a","#c9a7ff","#6fd6e8","#f59fd0","#b7d36a"];
+const IC={
+ ref:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/></svg>',
+ gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+ chev:'<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'};
+const PER=[["hoy","Hoy",0],["7","7 días",6],["30","30 días",29],["90","3 meses",89]];
+let per=LS.get(K.per)||"7",DATA=null,busy=false,timer=null,demo=false,lastErr="",openApp=LS.get(K.open)||"";
+
+/* ---------- fechas ---------- */
+const pad=n=>String(n).padStart(2,"0");
+const ymd=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+function range(){const p=PER.find(x=>x[0]===per)||PER[1];const e=new Date();const s=new Date();s.setDate(s.getDate()-p[2]);return{start:ymd(s),end:ymd(e),days:p[2]+1}}
+const DOW=["dom","lun","mar","mié","jue","vie","sáb"];
+const MES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const dlabel=s=>{const d=new Date(s+"T12:00:00");return DOW[d.getDay()]+" "+d.getDate()};
+const fmtN=n=>n>=1000?(n/1000).toFixed(n>=10000?0:1).replace(".",",")+" mil":String(n);
+/* GoatCounter entrega las horas en UTC: se pasan a la hora del celular */
+const OFF=-new Date().getTimezoneOffset()/60;
+function localHourly(stats){/* devuelve [{day, h(0-23 hora local), n}] */const out=[];
+  (stats||[]).forEach(s=>(s.hourly||[]).forEach((n,h)=>{if(!n)return;const d=new Date(s.day+"T00:00:00Z");d.setUTCHours(h);out.push({t:d,n})}));return out}
+function ago(t){const m=Math.round((Date.now()-t)/60000);if(m<2)return"ahora mismo";if(m<60)return"hace "+m+" min";const h=Math.round(m/60);if(h<24)return"hace "+h+" h";const d=Math.round(h/24);return d===1?"ayer":"hace "+d+" días"}
+
+/* ---------- API ---------- */
+async function api(path,params){
+  if(demo)return DEMO(path,params);
+  const u=new URL(GC+path);Object.entries(params||{}).forEach(([k,v])=>u.searchParams.set(k,v));
+  const r=await fetch(u,{headers:{Authorization:"Bearer "+LS.get(K.tok),"Content-Type":"application/json"}});
+  if(r.status===401||r.status===403)throw new Error("token");
+  if(r.status===429){await new Promise(r=>setTimeout(r,1200));return api(path,params)}
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  return r.json()}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+async function load(){
+  if(busy)return;busy=true;$("#rf")&&$("#rf").classList.add("spin");
+  const {start,end}=range();const q={start,end};
+  try{
+    const total=await api("/stats/total",q);await wait(260);
+    let hits=[],more=true,guard=0;
+    while(more&&guard<5){const r=await api("/stats/hits",Object.assign({limit:100},q,hits.length?{exclude_paths:hits.map(h=>h.path_id).join(",")}:{}));hits=hits.concat(r.hits||[]);more=r.more;guard++;await wait(260)}
+    const side={};for(const p of["locations","systems","browsers","sizes"]){try{side[p]=(await api("/stats/"+p,Object.assign({limit:8},q))).stats||[]}catch(e){side[p]=[]}await wait(260)}
+    DATA={total,hits,side,at:new Date()};lastErr=""}
+  catch(e){lastErr=e.message==="token"?"token":e.message}
+  busy=false;render()}
+
+/* ---------- agrupar por app ---------- */
+function group(){
+  const apps={},byName={};
+  const pv=DATA.hits.filter(h=>!h.event),ev=DATA.hits.filter(h=>h.event);
+  pv.forEach(h=>{const key=h.path.replace(/^\/+|\/+$/g,"").split("/")[0]||"(inicio)";
+    const a=apps[key]||(apps[key]={key,title:"",visits:0,stats:[],ev:[],short:""});
+    a.visits+=h.count;if(!a.title&&h.title)a.title=h.title;a.stats=a.stats.concat(h.stats||[])});
+  Object.values(apps).forEach(a=>{a.title=a.title||a.key.replace(/^demo-/,"").replace(/-/g," ")});
+  ev.forEach(h=>{const i=h.path.indexOf(" · ");const pre=i>0?h.path.slice(0,i):"Otras";const act=i>0?h.path.slice(i+3):h.path;
+    let a=Object.values(apps).find(x=>(x.title+" "+x.key).toLowerCase().includes(pre.toLowerCase()));
+    if(!a)a=apps["ev:"+pre]||(apps["ev:"+pre]={key:"ev:"+pre,title:pre,visits:0,stats:[],ev:[]});
+    a.short=pre;a.ev.push({act,n:h.count,stats:h.stats})});
+  const list=Object.values(apps).map(a=>{const hh=localHourly(a.stats).concat(...a.ev.map(e=>localHourly(e.stats)));
+    a.last=hh.length?Math.max(...hh.map(x=>+x.t))+3599e3:0;if(a.last>Date.now())a.last=Date.now();
+    a.actions=a.ev.filter(e=>!/^usó \d+ min$/.test(e.act)).reduce((s,e)=>s+e.n,0);return a});
+  list.sort((a,b)=>b.last-a.last||b.visits-a.visits);
+  list.forEach((a,i)=>a.col=COLS[i%COLS.length]);return list}
+
+/* ---------- dibujos ---------- */
+function barsChart(vals,labels,h=150){
+  const W=340,H=h,pb=20,pt=14,max=Math.max(1,...vals),n=vals.length,gw=W/n,bw=Math.max(3,Math.min(26,gw*.62));
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Gráfico de actividad">`;
+  for(let i=1;i<=3;i++){const y=pt+(H-pb-pt)*(1-i/3);s+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="#262a34" stroke-dasharray="2 4"/>`}
+  vals.forEach((v,i)=>{const bh=(H-pb-pt)*v/max,x=i*gw+(gw-bw)/2,y=H-pb-bh;
+    s+=`<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(bh,v?2:0)}" rx="3" fill="${v?"#8fb4ff":"#262a34"}"><animate attributeName="height" from="0" to="${Math.max(bh,v?2:0)}" dur=".5s"/><animate attributeName="y" from="${H-pb}" to="${y}" dur=".5s"/></rect>`;
+    if(v&&(n<=14||v===max))s+=`<text x="${x+bw/2}" y="${y-4}" text-anchor="middle" style="fill:#c4cbd7">${v}</text>`;
+    const step=n>14?Math.ceil(n/7):1;if(i%step===0||i===n-1&&n<=14)s+=`<text x="${x+bw/2}" y="${H-5}" text-anchor="middle">${labels[i]}</text>`});
+  return s+"</svg>"}
+function spark(vals,col){const W=64,H=28,max=Math.max(1,...vals),n=vals.length;if(n<2)return"";
+  const pts=vals.map((v,i)=>[(i/(n-1))*W,H-2-(H-6)*v/max]);const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join("");
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}"><path d="${d} L${W} ${H} L0 ${H}Z" fill="${col}" opacity=".15"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/></svg>`}
+function barsList(items,col){if(!items.length)return'<div class="empty">Todavía nada.</div>';const max=Math.max(...items.map(x=>x[1]));
+  return '<div class="bars">'+items.map(([l,v])=>`<div class="bar"><span class="bl">${esc(l)}</span><span class="bv">${v}</span><span class="bt"><i style="width:${Math.max(4,100*v/max)}%;background:${col||"var(--ac)"}"></i></span></div>`).join("")+"</div>"}
+function heat(hh,col){const by=new Array(24).fill(0);hh.forEach(x=>{by[x.t.getHours()]+=x.n});const max=Math.max(1,...by);
+  return `<div class="heat">${by.map((v,h)=>`<i title="${h}:00 · ${v}" style="${v?`background:${col};opacity:${.25+.75*v/max}`:""}"></i>`).join("")}</div><div class="hl"><span>0 h</span><span>6</span><span>12</span><span>18</span><span>23 h</span></div>`}
+const flag=c=>{c=String(c||"").split("-")[0].toUpperCase();return /^[A-Z]{2}$/.test(c)?String.fromCodePoint(...[...c].map(x=>127397+x.charCodeAt(0)))+" ":""};
+
+/* ---------- pantallas ---------- */
+function setup(){
+  $("#root").innerHTML=`<div class="setup">
+  <h1>Panel Apps de Viajes</h1>
+  <p>Mira cómo se usan tus apps: visitas, secciones, tiempo de uso y desde dónde, con los datos anónimos de GoatCounter.</p>
+  <ol><li>En GoatCounter, toca tu correo arriba → <b>API</b>.</li><li>En «Mi panel» toca <b>show</b> y copia el token.</li><li>Pégalo aquí. Se guarda solo en este celular.</li></ol>
+  ${lastErr==="token"?'<div class="err">Ese token no funciona. Revisa que lo copiaste completo y que tiene permiso «Read statistics».</div>':""}
+  <input id="tk" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Pega aquí el token">
+  <button class="btn" id="go">Entrar</button>
+  <button class="btn g" id="dm">Ver con datos de ejemplo</button>
+  <p class="priv">El token no sale de este celular. Solo da permiso para leer las estadísticas.</p></div>`;
+  $("#go").onclick=()=>{const v=$("#tk").value.trim();if(!v)return;LS.set(K.tok,v);demo=false;start()};
+  $("#dm").onclick=()=>{demo=true;start()}}
+function render(){
+  if(!demo&&!LS.get(K.tok)||lastErr==="token"&&!DATA){if(lastErr==="token")LS.del(K.tok);return setup()}
+  const r=range();
+  let h=`<header><div class="hd"><h1>Panel Apps de Viajes<small><span class="live ${document.visibilityState==="visible"?"":"off"}"></span>${DATA?"Actualizado "+pad(DATA.at.getHours())+":"+pad(DATA.at.getMinutes())+" · en vivo":"Cargando…"}</small></h1>
+    <button class="ib${busy?" spin":""}" id="rf" aria-label="Actualizar">${IC.ref}</button><button class="ib" id="cf" aria-label="Ajustes">${IC.gear}</button></div></header><div class="wrap">`;
+  if(demo)h+='<div class="demo">Datos de ejemplo. Pega tu token en Ajustes para ver los reales.</div>';
+  h+='<div class="seg" role="group" aria-label="Periodo">'+PER.map(p=>`<button data-per="${p[0]}" aria-pressed="${p[0]===per}">${p[1]}</button>`).join("")+"</div>";
+  if(lastErr&&lastErr!=="token")h+=`<div class="err">No pude actualizar (${esc(lastErr)}). Muestro lo último que cargó.</div>`;
+  if(!DATA){$("#root").innerHTML=h+'<p class="empty">Cargando estadísticas…</p></div>';bind();return}
+  const apps=group();const T=DATA.total;
+  const visits=apps.reduce((s,a)=>s+a.visits,0),acts=apps.reduce((s,a)=>s+a.actions,0),used=apps.filter(a=>a.visits||a.actions).length;
+  h+=`<div class="kpis"><div class="kpi"><b>${fmtN(visits)}</b><span>visitas</span></div><div class="kpi"><b>${fmtN(acts)}</b><span>toques</span></div><div class="kpi"><b>${used}</b><span>${used===1?"app usada":"apps usadas"}</span></div></div>`;
+  /* actividad */
+  let vals,labels,sub;
+  if(per==="hoy"){const hh=apps.flatMap(a=>localHourly(a.stats));const by=new Array(24).fill(0);const today=ymd(new Date());hh.forEach(x=>{if(ymd(x.t)===today)by[x.t.getHours()]+=x.n});vals=by;labels=by.map((_,i)=>i%3?"":i+"h");sub="visitas por hora"}
+  else{const map={};apps.forEach(a=>a.stats.forEach(s=>{map[s.day]=(map[s.day]||0)+(s.daily||0)}));const days=[];const d=new Date(r.start+"T12:00:00");for(let i=0;i<r.days;i++){days.push(ymd(d));d.setDate(d.getDate()+1)}vals=days.map(x=>map[x]||0);labels=days.map(dlabel);sub="visitas por día"}
+  h+=`<section class="card"><div class="ch"><h2>Actividad</h2><em>${sub}</em></div><div class="cb">${barsChart(vals,labels)}</div></section>`;
+  /* apps */
+  h+=`<section class="card"><div class="ch"><h2>Tus apps</h2><em>toca para ver el detalle</em></div><div>`;
+  if(!apps.length)h+='<div class="cb empty">Sin visitas en este periodo.</div>';
+  apps.forEach(a=>{const op=openApp===a.key;
+    const dmap={};a.stats.forEach(s=>{dmap[s.day]=(dmap[s.day]||0)+(s.daily||0)});const d=new Date(r.start+"T12:00:00");const sv=[];for(let i=0;i<Math.min(r.days,30);i++){sv.push(dmap[ymd(d)]||0);d.setDate(d.getDate()+1)}
+    const recent=a.last&&Date.now()-a.last<3600e3;
+    h+=`<div class="app"><button class="ah" data-app="${esc(a.key)}" aria-expanded="${op}">
+      <span class="av" style="background:${a.col}">${esc((a.title||"?").replace(/^(Escapada a|Mis|App)\s+/i,"").trim()[0]||"?")}</span>
+      <span class="an"><b>${esc(a.title)}</b><small>${a.last?(recent?'<i>● </i>':"")+"Última vez "+ago(a.last):"Sin actividad"}</small></span>
+      ${per==="hoy"?"":spark(sv,a.col)}
+      <span class="am"><b>${a.visits}</b><span>visitas</span></span>${IC.chev}</button>`;
+    if(op)h+=`<div class="ad">${detail(a)}</div>`;h+="</div>"});
+  h+="</div></section>";
+  /* desde dónde y equipos */
+  const S=DATA.side;const tl=x=>(x||[]).map(s=>[(s.name||s.id||"?"),s.count]);const RN=(()=>{try{return new Intl.DisplayNames(["es"],{type:"region"})}catch(e){return null}})();const tloc=x=>(x||[]).map(s=>{const c=String(s.id||"").split("-")[0].toUpperCase();let n=s.name||s.id||"?";try{if(RN&&/^[A-Z]{2}$/.test(c))n=RN.of(c)}catch(e){}return[(flag(c)+n).trim(),s.count]});
+  h+=`<section class="card"><div class="ch"><h2>Desde dónde</h2><em>país aproximado</em></div><div class="cb">${barsList(tloc(S.locations),"var(--ac2)")}</div></section>`;
+  h+=`<section class="card"><div class="ch"><h2>Con qué equipo</h2></div><div class="cb"><div class="list2"><div><h3 class="note" style="margin:0 0 8px">Sistema</h3>${barsList(tl(S.systems),"var(--ok)")}</div><div><h3 class="note" style="margin:0 0 8px">Navegador</h3>${barsList(tl(S.browsers),"#c9a7ff")}</div></div>
+    <h3 class="note" style="margin:14px 0 8px">Pantalla</h3>${barsList((S.sizes||[]).map(s=>[sizeName(s.name||s.id),s.count]),"#6fd6e8")}</div></section>`;
+  h+='<p class="priv">Datos anónimos: sin nombres, sin cookies y sin ubicación exacta.</p></div>';
+  $("#root").innerHTML=h;bind()}
+function sizeName(s){const m={phone:"Celular",largephone:"Celular grande",tablet:"Tablet",desktop:"Computador",desktophd:"Computador grande",unknown:"Otra"};return m[String(s).toLowerCase()]||s}
+function detail(a){
+  const cat={tab:[],stop:[],go:[],time:{},style:[],other:[]};
+  a.ev.forEach(e=>{const t=e.act;let m;
+    if(m=t.match(/^pestaña (.+)$/))cat.tab.push([m[1],e.n]);
+    else if(m=t.match(/^abrió parada: (.+)$/))cat.stop.push([m[1],e.n]);
+    else if(m=t.match(/^cómo llegar: (.+)$/))cat.go.push([m[1],e.n]);
+    else if(m=t.match(/^usó (\d+) min$/))cat.time[m[1]]=(cat.time[m[1]]||0)+e.n;
+    else if(m=t.match(/^estilo: (.+)$/))cat.style.push([m[1],e.n]);
+    else cat.other.push([t,e.n])});
+  const srt=x=>x.sort((p,q)=>q[1]-p[1]);
+  const hh=localHourly(a.stats).concat(...a.ev.map(e=>localHourly(e.stats)));
+  let s=`<h3>A qué hora la usan</h3>${heat(hh,a.col)}`;
+  s+=`<h3>Cuánto rato seguido</h3><div class="steps">${[1,5,15,30,60].map(m=>`<div class="step${cat.time[m]?" on":""}"><b>${cat.time[m]||0}</b><span>${m} min</span></div>`).join("")}</div><p class="note">Veces que alguien llegó a ese tiempo con la app en pantalla.</p>`;
+  s+=`<h3>Pestañas</h3>${barsList(srt(cat.tab),a.col)}`;
+  if(cat.stop.length)s+=`<h3>Paradas que abrieron</h3>${barsList(srt(cat.stop).slice(0,10),a.col)}`;
+  if(cat.go.length)s+=`<h3>«Cómo llegar» a…</h3>${barsList(srt(cat.go).slice(0,10),a.col)}`;
+  if(cat.other.length)s+=`<h3>Otras acciones</h3>${barsList(srt(cat.other),a.col)}`;
+  if(cat.style.length)s+=`<h3>Estilo elegido</h3>${barsList(srt(cat.style),a.col)}`;
+  if(!a.ev.length)s+='<p class="note">Esta app todavía no tiene el contador de acciones; solo se ven sus visitas.</p>';
+  return s}
+function bind(){
+  document.querySelectorAll("[data-per]").forEach(b=>b.onclick=()=>{per=b.dataset.per;LS.set(K.per,per);DATA=null;render();load()});
+  document.querySelectorAll("[data-app]").forEach(b=>b.onclick=()=>{openApp=openApp===b.dataset.app?"":b.dataset.app;LS.set(K.open,openApp);render()});
+  $("#rf")&&($("#rf").onclick=load);
+  $("#cf")&&($("#cf").onclick=settings)}
+function settings(){const d=document.createElement("div");d.className="sheet";
+  d.innerHTML=`<div><h2>Ajustes</h2><p class="note" style="margin:0 0 12px">${demo?"Estás viendo datos de ejemplo.":"Token guardado en este celular."}</p>
+  <button class="btn" id="nt">${demo?"Poner mi token":"Cambiar token"}</button>
+  <a class="btn g" style="text-align:center;text-decoration:none" href="https://javierov.goatcounter.com" target="_blank" rel="noopener">Abrir GoatCounter</a>
+  <button class="btn g" id="cl">Cerrar</button></div>`;
+  document.body.appendChild(d);d.onclick=e=>{if(e.target===d||e.target.id==="cl")d.remove()};
+  $("#nt").onclick=()=>{LS.del(K.tok);demo=false;DATA=null;d.remove();setup()}}
+function start(){render();load();clearInterval(timer);timer=setInterval(()=>{if(document.visibilityState==="visible")load()},60000)}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&(demo||LS.get(K.tok))){load()}else if(DATA)render()});
+
+/* ---------- datos de ejemplo ---------- */
+function DEMO(path){
+  const today=new Date(),days=[];const r=range();const d=new Date(r.start+"T12:00:00");for(let i=0;i<r.days;i++){days.push(ymd(d));d.setDate(d.getDate()+1)}
+  const rnd=(s=>()=>(s=(s*16807)%2147483647)/2147483647)(42);
+  const mk=(scale,peak)=>days.map((day,i)=>{const hourly=new Array(24).fill(0);let tot=0;for(let h=7;h<23;h++){const v=Math.round(rnd()*scale*(Math.abs(h-peak)<3?2:.4)*(i>days.length-3?1.6:1));hourly[(h-OFF+24)%24]=v;tot+=v}return{day,daily:tot,hourly}});
+  if(path==="/stats/total")return{total:0,total_events:0,stats:[]};
+  if(path==="/stats/hits"){const H=[];let id=1;
+    const app=(p,t,sc,pk,pre,evs)=>{H.push({path:p,title:t,event:false,count:0,path_id:id++,stats:mk(sc,pk)});H[H.length-1].count=H[H.length-1].stats.reduce((s,x)=>s+x.daily,0);
+      evs.forEach(([a,n])=>H.push({path:pre+" · "+a,title:a,event:true,count:n,path_id:id++,stats:mk(n/(days.length*6),pk)}))};
+    app("/demo-escapada-a-toledo/","Escapada a Toledo",.6,11,"Toledo",[["pestaña Ruta",9],["pestaña Mapa",6],["pestaña Comer",4],["abrió parada: Catedral Primada",3],["abrió parada: Museo del Greco",2],["abrió parada: Puente de San Martín",1],["cómo llegar: Ave Fénix",2],["cómo llegar: Obrador Santo Tomé",1],["usó «Dónde estoy»",3],["usó 1 min",5],["usó 5 min",3],["usó 15 min",1],["estilo: noche",1]]);
+    app("/demo-mis-vacaciones/","Mis Vacaciones",.5,20,"Mis Vacaciones",[]);
+    app("/demo-escapada-a-europa/","Escapada a Europa",.3,9,"Europa",[]);
+    return{hits:H,more:false,total:0}}
+  const S={locations:[["ES","Spain",18],["CL","Chile",6],["PT","Portugal",2]],systems:[["ios","iOS",15],["android","Android",9],["win","Windows",2]],browsers:[["safari","Safari",14],["chrome","Chrome",11],["ff","Firefox",1]],sizes:[["phone","phone",22],["desktop","desktop",3],["tablet","tablet",1]]};
+  const k=path.split("/").pop();return{stats:(S[k]||[]).map(([id,name,count])=>({id,name,count})),more:false}}
+
+if(LS.get(K.tok))start();else setup();
+if("serviceWorker"in navigator&&/github\.io$/.test(location.hostname))navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
