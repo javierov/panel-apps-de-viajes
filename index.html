@@ -123,10 +123,14 @@ const DOW=["dom","lun","mar","mié","jue","vie","sáb"];
 const MES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 const dlabel=s=>{const d=new Date(s+"T12:00:00");return DOW[d.getDay()]+" "+d.getDate()};
 const fmtN=n=>n>=1000?(n/1000).toFixed(n>=10000?0:1).replace(".",",")+" mil":String(n);
-/* GoatCounter entrega las horas en UTC: se pasan a la hora del celular */
-const OFF=-new Date().getTimezoneOffset()/60;
-function localHourly(stats){/* devuelve [{day, h(0-23 hora local), n}] */const out=[];
-  (stats||[]).forEach(s=>(s.hourly||[]).forEach((n,h)=>{if(!n)return;const d=new Date(s.day+"T00:00:00Z");d.setUTCHours(h);out.push({t:d,n})}));return out}
+/* GoatCounter entrega las horas («hourly») en la zona horaria de la cuenta (Europe/Madrid), NO en UTC.
+   Se convierten a la hora real con esa zona; la zona se lee de /me la primera vez y se guarda en pav-tz */
+let TZ=LS.get("pav-tz")||"Europe/Madrid";
+function tzOff(d,tz){try{const p={};new Intl.DateTimeFormat("en-US",{timeZone:tz,hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"}).formatToParts(d).forEach(x=>p[x.type]=x.value);
+  return Date.UTC(+p.year,+p.month-1,+p.day,+p.hour%24,+p.minute,+p.second)-d.getTime()}catch(e){return 0}}
+function siteTime(day,h){const g=new Date(day+"T"+pad(h)+":00:00Z").getTime();let t=g-tzOff(new Date(g),TZ);t=g-tzOff(new Date(t),TZ);return new Date(t)}
+function localHourly(stats){/* devuelve [{t: inicio de esa hora, n}] */const out=[];
+  (stats||[]).forEach(s=>(s.hourly||[]).forEach((n,h)=>{if(!n)return;out.push({t:siteTime(s.day,h),n})}));return out}
 function ago(t){const m=Math.round((Date.now()-t)/60000);if(m<2)return"ahora mismo";if(m<60)return"hace "+m+" min";const h=Math.round(m/60);if(h<24)return"hace "+h+" h";const d=Math.round(h/24);return d===1?"ayer":"hace "+d+" días"}
 
 /* ---------- API ---------- */
@@ -150,6 +154,7 @@ async function load(){
     let D0=LS.get("pav-desde");if(D0){const d=new Date(D0);d.setMinutes(0,0,0);D0=d.toISOString().replace(/\.\d+Z$/,"Z")}const q={start:D0&&D0>R0.qs?D0:R0.qs,end:R0.qe};
   try{
     const total=await api("/stats/total",q);await wait(400);
+    if(!demo&&!LS.get("pav-tz")){try{const me=await api("/me",{});const z=String(((me.user||{}).settings||{}).timezone||"").replace(/^[A-Z]{2}\./,"");if(z){TZ=z;LS.set("pav-tz",z)}}catch(e){}await wait(400)}
     let hits=[],more=true,guard=0;
     while(more&&guard<5){const r=await api("/stats/hits",Object.assign({limit:100},q,hits.length?{exclude_paths:hits.map(h=>h.path_id).join(",")}:{}));hits=hits.concat(r.hits||[]);more=r.more;guard++;await wait(400)}
     let known=[];if(q.start!==R0.qs){try{known=((await api("/stats/hits",{start:R0.qs,end:R0.qe,limit:100})).hits||[]).filter(h=>!h.event)}catch(e){}await wait(400)}
@@ -313,7 +318,7 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 function DEMO(path){
   const today=new Date(),days=[];const r=range();const d=new Date(r.start+"T12:00:00");for(let i=0;i<r.days;i++){days.push(ymd(d));d.setDate(d.getDate()+1)}
   const rnd=(s=>()=>(s=(s*16807)%2147483647)/2147483647)(42);
-  const mk=(scale,peak)=>days.map((day,i)=>{const hourly=new Array(24).fill(0);let tot=0;for(let h=7;h<23;h++){const v=Math.round(rnd()*scale*(Math.abs(h-peak)<3?2:.4)*(i>days.length-3?1.6:1));hourly[(h-OFF+24)%24]=v;tot+=v}return{day,daily:tot,hourly}});
+  const mk=(scale,peak)=>days.map((day,i)=>{const hourly=new Array(24).fill(0);let tot=0;for(let h=7;h<23;h++){const v=Math.round(rnd()*scale*(Math.abs(h-peak)<3?2:.4)*(i>days.length-3?1.6:1));hourly[h]=v;tot+=v}return{day,daily:tot,hourly}});
   if(path==="/stats/total")return{total:0,total_events:0,stats:[]};
   if(path==="/stats/hits"){const H=[];let id=1;
     const app=(p,t,sc,pk,pre,evs)=>{H.push({path:p,title:t,event:false,count:0,path_id:id++,stats:mk(sc,pk)});H[H.length-1].count=H[H.length-1].stats.reduce((s,x)=>s+x.daily,0);
