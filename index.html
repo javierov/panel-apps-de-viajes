@@ -209,7 +209,7 @@ function render(){
   if(!DATA){$("#root").innerHTML=h+'<p class="empty">Cargando estadísticas…</p></div>';bind();return}
   const apps=group();const T=DATA.total;
   const visits=apps.reduce((s,a)=>s+a.visits,0),acts=apps.reduce((s,a)=>s+a.actions,0),used=apps.filter(a=>a.visits||a.actions).length;
-  h+=`<div class="kpis"><div class="kpi"><b>${fmtN(visits)}</b><span>visitas</span></div><div class="kpi"><b>${fmtN(acts)}</b><span>toques</span></div><div class="kpi"><b>${used}</b><span>${used===1?"app usada":"apps usadas"}</span></div></div>`;
+  h+=`<div class="kpis"><div class="kpi"><b>${fmtN(visits)}</b><span>${visits===1?"visita":"visitas"}</span></div><div class="kpi"><b>${fmtN(acts)}</b><span>${acts===1?"toque":"toques"}</span></div><div class="kpi"><b>${used}</b><span>${used===1?"app usada":"apps usadas"}</span></div></div>`;
   /* actividad */
   let vals,labels,sub;
   if(per==="hoy"){const hh=apps.flatMap(a=>localHourly(a.stats));const by=new Array(24).fill(0);const today=ymd(new Date());hh.forEach(x=>{if(ymd(x.t)===today)by[x.t.getHours()]+=x.n});vals=by;labels=by.map((_,i)=>i%3?"":i+"h");sub="visitas por hora"}
@@ -225,7 +225,7 @@ function render(){
       <span class="av" style="background:${a.col}">${esc((a.title||"?").replace(/^(Escapada a|Mis|App)\s+/i,"").trim()[0]||"?")}</span>
       <span class="an"><b>${esc(a.title)}</b><small>${a.last?(recent?'<i>● </i>':"")+"Última vez "+ago(a.last):"Sin actividad"}</small></span>
       ${per==="hoy"?"":spark(sv,a.col)}
-      <span class="am"><b>${a.visits}</b><span>visitas</span></span>${IC.chev}</button>`;
+      <span class="am"><b>${a.visits}</b><span>${a.visits===1?"visita":"visitas"}</span></span>${IC.chev}</button>`;
     if(op)h+=`<div class="ad">${detail(a)}</div>`;h+="</div>"});
   h+="</div></section>";
   /* desde dónde y equipos */
