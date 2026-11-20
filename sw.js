@@ -1,5 +1,5 @@
 /* Panel Apps de Viajes: guarda la app para abrirla rápido; los datos siempre se piden en vivo */
-const V="pav-panel-v7",FILES=["./","index.html","manifest.json","icono.png","icono-192.png","apple-touch-icon.png","fonts/marcellus.woff2"];
+const V="pav-panel-v8",FILES=["./","index.html","manifest.json","icono.png","icono-192.png","apple-touch-icon.png","fonts/marcellus.woff2"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(c=>Promise.allSettled(FILES.map(f=>c.add(new Request(f,{cache:"reload"}))))).then(()=>self.skipWaiting()))});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith("pav-")&&k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener("fetch",e=>{const r=e.request;if(r.method!=="GET"||new URL(r.url).origin!==location.origin)return;

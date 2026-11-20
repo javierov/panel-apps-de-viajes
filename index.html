@@ -146,8 +146,9 @@ async function load(){
     const total=await api("/stats/total",q);await wait(260);
     let hits=[],more=true,guard=0;
     while(more&&guard<5){const r=await api("/stats/hits",Object.assign({limit:100},q,hits.length?{exclude_paths:hits.map(h=>h.path_id).join(",")}:{}));hits=hits.concat(r.hits||[]);more=r.more;guard++;await wait(260)}
+    let known=[];if(q.start!==R0.qs){try{known=((await api("/stats/hits",{start:R0.qs,end:R0.qe,limit:100})).hits||[]).filter(h=>!h.event)}catch(e){}await wait(260)}
     const side={};for(const p of["locations","systems","browsers","sizes"]){try{side[p]=(await api("/stats/"+p,Object.assign({limit:8},q))).stats||[]}catch(e){side[p]=[]}await wait(260)}
-    DATA={total,hits,side,at:new Date()};lastErr=""}
+    DATA={total,hits,side,known,at:new Date()};lastErr=""}
   catch(e){lastErr=e.message==="token"?"token":e.message}
   busy=false;render()}
 
@@ -158,6 +159,7 @@ function group(){
   pv.forEach(h=>{const key=h.path.replace(/^\/+|\/+$/g,"").split("/")[0]||"(inicio)";
     const a=apps[key]||(apps[key]={key,title:"",visits:0,stats:[],ev:[],short:""});
     a.visits+=h.count;if(!a.title&&h.title)a.title=h.title;a.stats=a.stats.concat(h.stats||[])});
+  (DATA.known||[]).forEach(h=>{const key=h.path.replace(/^\/+|\/+$/g,"").split("/")[0]||"(inicio)";if(!apps[key])apps[key]={key,title:h.title||"",visits:0,stats:[],ev:[],short:""}});
   Object.values(apps).forEach(a=>{a.title=a.title||a.key.replace(/^demo-/,"").replace(/-/g," ")});
   ev.forEach(h=>{const i=h.path.indexOf(" · ");const pre=i>0?h.path.slice(0,i):"Otras";const act=i>0?h.path.slice(i+3):h.path;
     let a=Object.values(apps).find(x=>(x.title+" "+x.key).toLowerCase().includes(pre.toLowerCase()));
@@ -233,7 +235,7 @@ function render(){
     const recent=a.last&&Date.now()-a.last<3600e3;
     h+=`<div class="app"><button class="ah" data-app="${esc(a.key)}" aria-expanded="${op}">
       <span class="av" style="background:${a.col}">${esc((a.title||"?").replace(/^(Escapada a|Mis|App)\s+/i,"").trim()[0]||"?")}${/^ev:|^\(/.test(a.key)?"":`<img src="../${encodeURIComponent(a.key)}/apple-touch-icon.png" alt="" loading="lazy" onerror="this.remove()">`}</span>
-      <span class="an"><b>${esc(a.title)}</b><small>${a.last?(recent?'<i>● </i>':"")+"Última vez "+ago(a.last):"Sin actividad"}</small></span>
+      <span class="an"><b>${esc(a.title)}</b><small>${a.last?(recent?'<i>● </i>':"")+"Última vez "+ago(a.last):(LS.get("pav-desde")?"Nada desde que empezaste a contar":"Sin actividad")}</small></span>
       ${per==="hoy"?"":spark(sv,a.col)}
       <span class="am"><b>${a.visits}</b><span>${a.visits===1?"visita":"visitas"}</span></span>${IC.chev}</button>`;
     if(op)h+=`<div class="ad">${detail(a)}</div>`;h+="</div>"});
@@ -248,7 +250,7 @@ function render(){
   h+="</div></section>";
   /* desde dónde y equipos */
   const S=DATA.side;const tl=x=>(x||[]).filter(s=>s.count>0).map(s=>[(s.name||s.id||"?"),s.count]);const RN=(()=>{try{return new Intl.DisplayNames(["es"],{type:"region"})}catch(e){return null}})();const tloc=x=>(x||[]).filter(s=>s.count>0).map(s=>{const c=String(s.id||"").split("-")[0].toUpperCase();let n=s.name||s.id||"?";try{if(RN&&/^[A-Z]{2}$/.test(c))n=RN.of(c)}catch(e){}return[(flag(c)+n).trim(),s.count]});
-  h+=`<section class="card"><div class="ch"><h2>Desde dónde</h2><em>país aproximado</em></div><div class="cb">${barsList(tloc(S.locations),"var(--ac2)")}</div></section>`;
+  h+=`<section class="card"><div class="ch"><h2>Desde dónde</h2><em>país aproximado${LS.get("pav-desde")?" · días completos":""}</em></div><div class="cb">${barsList(tloc(S.locations),"var(--ac2)")}</div></section>`;
   h+=`<section class="card"><div class="ch"><h2>Con qué equipo</h2></div><div class="cb"><div class="list2"><div><h3 class="note" style="margin:0 0 8px">Sistema</h3>${barsList(tl(S.systems),"var(--ok)")}</div><div><h3 class="note" style="margin:0 0 8px">Navegador</h3>${barsList(tl(S.browsers),"#c9a7ff")}</div></div>
     <h3 class="note" style="margin:14px 0 8px">Pantalla</h3>${barsList((S.sizes||[]).filter(s=>s.count>0).map(s=>[sizeName(s.name||s.id),s.count]),"#6fd6e8")}</div></section>`;
   h+='<p class="priv">Datos anónimos: sin nombres, sin cookies y sin ubicación exacta.</p></div>';
