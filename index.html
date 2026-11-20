@@ -141,7 +141,7 @@ async function api(path,params){
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function load(){
   if(busy)return;busy=true;$("#rf")&&$("#rf").classList.add("spin");
-  const R0=range();const q={start:R0.qs,end:R0.qe};
+  const R0=range();const D0=LS.get("pav-desde");const q={start:D0&&D0>R0.qs?D0:R0.qs,end:R0.qe};
   try{
     const total=await api("/stats/total",q);await wait(260);
     let hits=[],more=true,guard=0;
@@ -211,7 +211,7 @@ function setup(){
 function render(){
   if(!demo&&!LS.get(K.tok)||lastErr==="token"&&!DATA){if(lastErr==="token")LS.del(K.tok);return setup()}
   const r=range();
-  let h=`<header><div class="hd"><h1>Panel Apps de Viajes<small><span class="live ${document.visibilityState==="visible"?"":"off"}"></span>${DATA?"Actualizado "+pad(DATA.at.getHours())+":"+pad(DATA.at.getMinutes())+" · en vivo":"Cargando…"}</small></h1>
+  let h=`<header><div class="hd"><h1>Panel Apps de Viajes<small><span class="live ${document.visibilityState==="visible"?"":"off"}"></span>${DATA?"Actualizado "+pad(DATA.at.getHours())+":"+pad(DATA.at.getMinutes())+" · en vivo"+(LS.get("pav-desde")?" · desde el "+fdesde():""):"Cargando…"}</small></h1>
     <button class="ib${busy?" spin":""}" id="rf" aria-label="Actualizar">${IC.ref}</button><button class="ib" id="cf" aria-label="Ajustes">${IC.gear}</button></div></header><div class="wrap">`;
   if(demo)h+='<div class="demo">Datos de ejemplo. Pega tu token en Ajustes para ver los reales.</div>';
   h+='<div class="seg" role="group" aria-label="Periodo">'+PER.map(p=>`<button data-per="${p[0]}" aria-pressed="${p[0]===per}">${p[1]}</button>`).join("")+"</div>";
@@ -253,6 +253,7 @@ function render(){
     <h3 class="note" style="margin:14px 0 8px">Pantalla</h3>${barsList((S.sizes||[]).filter(s=>s.count>0).map(s=>[sizeName(s.name||s.id),s.count]),"#6fd6e8")}</div></section>`;
   h+='<p class="priv">Datos anónimos: sin nombres, sin cookies y sin ubicación exacta.</p></div>';
   $("#root").innerHTML=h;bind()}
+function fdesde(){const d=new Date(LS.get("pav-desde"));return d.getDate()+" "+MES[d.getMonth()]+" a las "+pad(d.getHours())+":"+pad(d.getMinutes())}
 function sizeName(s){const m={phone:"Celular",largephone:"Celular grande",tablet:"Tablet",desktop:"Computador",desktophd:"Computador grande",unknown:"Otra"};return m[String(s).toLowerCase()]||s}
 function detail(a){
   const cat={tab:[],stop:[],go:[],time:{},style:[],other:[]};
@@ -283,10 +284,13 @@ function settings(){const d=document.createElement("div");d.className="sheet";
   d.innerHTML=`<div><h2>Ajustes</h2><p class="note" style="margin:0 0 12px">${demo?"Estás viendo datos de ejemplo.":"Token guardado en este celular."}</p>
   <button class="btn g" id="me" style="margin:0 0 10px">${LS.get("javierov-nostats")==="1"?"✓ Este equipo no cuenta en las estadísticas":"No contar mis visitas en este equipo"}</button>
   <p class="note" style="margin:-4px 0 14px">Vale para todas tus apps en este navegador. Hazlo en cada celular o computador donde las pruebes.</p>
+  <button class="btn g" id="desde" style="margin:0 0 6px">${LS.get("pav-desde")?"Volver a contar todo":"Empezar a contar desde ahora"}</button>
+  <p class="note" style="margin:0 0 14px">${LS.get("pav-desde")?"Ahora cuentas desde el "+fdesde()+". Lo anterior (pruebas) no se muestra.":"Oculta lo anterior, por ejemplo las pruebas. No borra nada en GoatCounter."}</p>
   <button class="btn" id="nt">${demo?"Poner mi token":"Cambiar token"}</button>
   <a class="btn g" style="text-align:center;text-decoration:none" href="https://javierov.goatcounter.com" target="_blank" rel="noopener">Abrir GoatCounter</a>
   <button class="btn g" id="cl">Cerrar</button></div>`;
   document.body.appendChild(d);d.onclick=e=>{if(e.target===d||e.target.id==="cl")d.remove()};
+  $("#desde").onclick=()=>{if(LS.get("pav-desde"))LS.del("pav-desde");else LS.set("pav-desde",new Date().toISOString().replace(/\.\d+Z$/,"Z"));d.remove();DATA=null;render();load()};
   $("#me").onclick=()=>{if(LS.get("javierov-nostats")==="1")LS.del("javierov-nostats");else LS.set("javierov-nostats","1");$("#me").textContent=LS.get("javierov-nostats")==="1"?"✓ Este equipo no cuenta en las estadísticas":"No contar mis visitas en este equipo"};
   $("#nt").onclick=()=>{LS.del(K.tok);demo=false;DATA=null;d.remove();setup()}}
 function start(){render();load();clearInterval(timer);timer=setInterval(()=>{if(document.visibilityState==="visible")load()},60000)}
