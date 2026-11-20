@@ -75,6 +75,9 @@ header{position:sticky;top:0;z-index:5;background:rgb(11 12 15/.92);backdrop-fil
 .heat i{aspect-ratio:1/2.2;border-radius:3px;background:var(--card2)}
 .hl{display:flex;justify-content:space-between;font-size:11px;color:var(--mute);margin-top:4px}
 .empty{color:var(--mute);font-size:14.5px;padding:4px 0}
+.demo-p{border-top:1px solid var(--line);padding:12px 0}.demo-p:first-child{border-top:0;padding-top:4px}
+.dp-h{display:flex;gap:12px;align-items:center;margin-bottom:8px}
+.dp-a{margin:10px 0 0}.dp-a>b{font-size:15.5px}.dp-a .bars{margin-top:8px}
 .list2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .setup{max-width:520px;margin:40px auto;padding:0 18px}
 .setup h1{font:400 30px/1.15 Marcellus,serif;margin:0 0 8px}
@@ -151,7 +154,7 @@ async function load(){
 /* ---------- agrupar por app ---------- */
 function group(){
   const apps={},byName={};
-  const pv=DATA.hits.filter(h=>!h.event),ev=DATA.hits.filter(h=>h.event);
+  const pv=DATA.hits.filter(h=>!h.event),ev=DATA.hits.filter(h=>h.event&&!/^demo:/.test(h.path));
   pv.forEach(h=>{const key=h.path.replace(/^\/+|\/+$/g,"").split("/")[0]||"(inicio)";
     const a=apps[key]||(apps[key]={key,title:"",visits:0,stats:[],ev:[],short:""});
     a.visits+=h.count;if(!a.title&&h.title)a.title=h.title;a.stats=a.stats.concat(h.stats||[])});
@@ -166,6 +169,13 @@ function group(){
   list.sort((a,b)=>b.last-a.last||b.visits-a.visits);
   list.forEach((a,i)=>a.col=COLS[i%COLS.length]);return list}
 
+/* ---------- demos enviadas (enlaces ?de=nombre) ---------- */
+function demos(){const P={};
+  DATA.hits.filter(h=>h.event&&/^demo:/.test(h.path)).forEach(h=>{const parts=h.path.slice(5).split(" · ");if(parts.length<3)return;const [who,app,...rest]=parts;const act=rest.join(" · ");
+    const p=P[who]||(P[who]={who,apps:{},last:0});const a=p.apps[app]||(p.apps[app]={app,opens:0,max:0,acts:[]});
+    const hh=localHourly(h.stats);const l=hh.length?Math.max(...hh.map(x=>+x.t))+3599e3:0;if(l>p.last)p.last=Math.min(l,Date.now());
+    let m;if(act==="abrió la app")a.opens+=h.count;else if(m=act.match(/^usó (\d+) min$/))a.max=Math.max(a.max,+m[1]);else a.acts.push([act,h.count])});
+  return Object.values(P).sort((a,b)=>b.last-a.last)}
 /* ---------- dibujos ---------- */
 function barsChart(vals,labels,h=150){
   const W=340,H=h,pb=20,pt=14,max=Math.max(1,...vals),n=vals.length,gw=W/n,bw=Math.max(3,Math.min(26,gw*.62));
@@ -228,6 +238,14 @@ function render(){
       <span class="am"><b>${a.visits}</b><span>${a.visits===1?"visita":"visitas"}</span></span>${IC.chev}</button>`;
     if(op)h+=`<div class="ad">${detail(a)}</div>`;h+="</div>"});
   h+="</div></section>";
+  const D=demos();
+  h+=`<section class="card"><div class="ch"><h2>Demos enviadas</h2><em>enlaces con ?de=</em></div><div class="cb">`;
+  if(!D.length)h+=`<p class="empty">Nadie ha abierto todavía un enlace de demo en este periodo.</p><p class="note">Manda tus apps con <b>?de=nombre</b> al final del enlace, por ejemplo …/demo-escapada-a-toledo/?de=cata</p>`;
+  D.forEach((p,i)=>{h+=`<div class="demo-p"><div class="dp-h"><span class="av" style="background:${COLS[(i+3)%COLS.length]}">${esc(p.who[0].toUpperCase())}</span><span class="an"><b>${esc(p.who[0].toUpperCase()+p.who.slice(1))}</b><small>Última vez ${p.last?ago(p.last):"—"}</small></span></div>`;
+    Object.values(p.apps).forEach(a=>{const top=a.acts.sort((x,y)=>y[1]-x[1]).slice(0,6);
+      h+=`<div class="dp-a"><b>${esc(a.app)}</b> <span class="note">· abrió ${a.opens} ${a.opens===1?"vez":"veces"}${a.max?" · llegó a "+a.max+" min seguidos":""}</span>${top.length?barsList(top,COLS[(i+3)%COLS.length]):'<div class="empty">Solo la abrió, sin tocar nada.</div>'}</div>`});
+    h+="</div>"});
+  h+="</div></section>";
   /* desde dónde y equipos */
   const S=DATA.side;const tl=x=>(x||[]).filter(s=>s.count>0).map(s=>[(s.name||s.id||"?"),s.count]);const RN=(()=>{try{return new Intl.DisplayNames(["es"],{type:"region"})}catch(e){return null}})();const tloc=x=>(x||[]).filter(s=>s.count>0).map(s=>{const c=String(s.id||"").split("-")[0].toUpperCase();let n=s.name||s.id||"?";try{if(RN&&/^[A-Z]{2}$/.test(c))n=RN.of(c)}catch(e){}return[(flag(c)+n).trim(),s.count]});
   h+=`<section class="card"><div class="ch"><h2>Desde dónde</h2><em>país aproximado</em></div><div class="cb">${barsList(tloc(S.locations),"var(--ac2)")}</div></section>`;
@@ -286,6 +304,7 @@ function DEMO(path){
     app("/demo-escapada-a-toledo/","Escapada a Toledo",.6,11,"Toledo",[["pestaña Ruta",9],["pestaña Mapa",6],["pestaña Comer",4],["abrió parada: Catedral Primada",3],["abrió parada: Museo del Greco",2],["abrió parada: Puente de San Martín",1],["cómo llegar: Ave Fénix",2],["cómo llegar: Obrador Santo Tomé",1],["usó «Dónde estoy»",3],["usó 1 min",5],["usó 5 min",3],["usó 15 min",1],["estilo: noche",1]]);
     app("/demo-mis-vacaciones/","Mis Vacaciones",.5,20,"Mis Vacaciones",[]);
     app("/demo-escapada-a-europa/","Escapada a Europa",.3,9,"Europa",[]);
+    [["demo:cata · Toledo · abrió la app",3],["demo:cata · Toledo · pestaña Mapa",2],["demo:cata · Toledo · usó «Dónde estoy»",1],["demo:cata · Toledo · abrió parada: Catedral Primada",1],["demo:cata · Toledo · usó 5 min",1],["demo:cata · Mis Vacaciones · abrió la app",1]].forEach(([p,n])=>H.push({path:p,title:p,event:true,count:n,path_id:id++,stats:mk(n/(days.length*6),16)}));
     return{hits:H,more:false,total:0}}
   const S={locations:[["ES","Spain",18],["CL","Chile",6],["PT","Portugal",2]],systems:[["ios","iOS",15],["android","Android",9],["win","Windows",2]],browsers:[["safari","Safari",14],["chrome","Chrome",11],["ff","Firefox",1]],sizes:[["phone","phone",22],["desktop","desktop",3],["tablet","tablet",1]]};
   const k=path.split("/").pop();return{stats:(S[k]||[]).map(([id,name,count])=>({id,name,count})),more:false}}
