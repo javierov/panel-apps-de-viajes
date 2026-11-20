@@ -151,7 +151,10 @@ async function load(){
     let hits=[],more=true,guard=0;
     while(more&&guard<5){const r=await api("/stats/hits",Object.assign({limit:100},q,hits.length?{exclude_paths:hits.map(h=>h.path_id).join(",")}:{}));hits=hits.concat(r.hits||[]);more=r.more;guard++;await wait(400)}
     let known=[];if(q.start!==R0.qs){try{known=((await api("/stats/hits",{start:R0.qs,end:R0.qe,limit:100})).hits||[]).filter(h=>!h.event)}catch(e){}await wait(400)}
-    const side={};for(const p of["locations","systems","browsers","sizes"]){try{side[p]=(await api("/stats/"+p,Object.assign({limit:8},q))).stats||[]}catch(e){side[p]=[]}await wait(400)}
+    const side={};let sq=q;
+    /* país y equipo solo vienen por día completo: si se cuenta «desde» una hora, se empieza al día siguiente */
+    if(D0&&D0>R0.qs){const d=new Date(D0);d.setHours(24,0,0,0);sq={start:d.toISOString().replace(/\.\d+Z$/,"Z"),end:q.end};side.from=d}
+    if(!side.from||side.from<new Date()){for(const p of["locations","systems","browsers","sizes"]){try{side[p]=(await api("/stats/"+p,Object.assign({limit:8},sq))).stats||[]}catch(e){side[p]=[]}await wait(400)}}else side.later=true
     DATA={total,hits,side,known,at:new Date()};lastErr=""}
   catch(e){lastErr=e.message==="token"?"token":e.message}
   busy=false;render()}
@@ -254,10 +257,12 @@ function render(){
   h+="</div></section>";
   /* desde dónde y equipos */
   const S=DATA.side;const tl=x=>(x||[]).filter(s=>s.count>0).map(s=>[(s.name||s.id||"?"),s.count]);const RN=(()=>{try{return new Intl.DisplayNames(["es"],{type:"region"})}catch(e){return null}})();const tloc=x=>(x||[]).filter(s=>s.count>0).map(s=>{const c=String(s.id||"").split("-")[0].toUpperCase();let n=s.name||s.id||"?";try{if(RN&&/^[A-Z]{2}$/.test(c))n=RN.of(c)}catch(e){}return[(flag(c)+n).trim(),s.count]});
-  h+=`<section class="card"><div class="ch"><h2>Desde dónde</h2><em>país aproximado${LS.get("pav-desde")?" · días completos":""}</em></div><div class="cb">${barsList(tloc(S.locations),"var(--ac2)")}</div></section>`;
+  if(S.later)h+=`<section class="card"><div class="ch"><h2>Desde dónde y con qué equipo</h2></div><div class="cb"><p class="empty">Aparecerá desde mañana. GoatCounter cuenta el país y el equipo por día completo, así que el día en que empezaste a contar no se puede separar.</p></div></section>`;
+  else{  h+=`<section class="card"><div class="ch"><h2>Desde dónde</h2><em>país aproximado</em></div><div class="cb">${barsList(tloc(S.locations),"var(--ac2)")}</div></section>`;
   h+=`<section class="card"><div class="ch"><h2>Con qué equipo</h2></div><div class="cb"><div class="list2"><div><h3 class="note" style="margin:0 0 8px">Sistema</h3>${barsList(tl(S.systems),"var(--ok)")}</div><div><h3 class="note" style="margin:0 0 8px">Navegador</h3>${barsList(tl(S.browsers),"#c9a7ff")}</div></div>
     <h3 class="note" style="margin:14px 0 8px">Pantalla</h3>${barsList((S.sizes||[]).filter(s=>s.count>0).map(s=>[sizeName(s.name||s.id),s.count]),"#6fd6e8")}</div></section>`;
-  h+='<p class="priv">Datos anónimos: sin nombres, sin cookies y sin ubicación exacta.</p></div>';
+  }
+h+='<p class="priv">Datos anónimos: sin nombres, sin cookies y sin ubicación exacta.</p></div>';
   $("#root").innerHTML=h;bind()}
 function fdesde(){const d=new Date(LS.get("pav-desde"));return d.getDate()+" "+MES[d.getMonth()]+" a las "+pad(d.getHours())+":"+pad(d.getMinutes())}
 function sizeName(s){const m={phone:"Celular",largephone:"Celular grande",tablet:"Tablet",desktop:"Computador",desktophd:"Computador grande",unknown:"Otra"};return m[String(s).toLowerCase()]||s}
