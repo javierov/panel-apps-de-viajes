@@ -263,10 +263,13 @@ function bind(){
   $("#cf")&&($("#cf").onclick=settings)}
 function settings(){const d=document.createElement("div");d.className="sheet";
   d.innerHTML=`<div><h2>Ajustes</h2><p class="note" style="margin:0 0 12px">${demo?"Estás viendo datos de ejemplo.":"Token guardado en este celular."}</p>
+  <button class="btn g" id="me" style="margin:0 0 10px">${LS.get("javierov-nostats")==="1"?"✓ Este equipo no cuenta en las estadísticas":"No contar mis visitas en este equipo"}</button>
+  <p class="note" style="margin:-4px 0 14px">Vale para todas tus apps en este navegador. Hazlo en cada celular o computador donde las pruebes.</p>
   <button class="btn" id="nt">${demo?"Poner mi token":"Cambiar token"}</button>
   <a class="btn g" style="text-align:center;text-decoration:none" href="https://javierov.goatcounter.com" target="_blank" rel="noopener">Abrir GoatCounter</a>
   <button class="btn g" id="cl">Cerrar</button></div>`;
   document.body.appendChild(d);d.onclick=e=>{if(e.target===d||e.target.id==="cl")d.remove()};
+  $("#me").onclick=()=>{if(LS.get("javierov-nostats")==="1")LS.del("javierov-nostats");else LS.set("javierov-nostats","1");$("#me").textContent=LS.get("javierov-nostats")==="1"?"✓ Este equipo no cuenta en las estadísticas":"No contar mis visitas en este equipo"};
   $("#nt").onclick=()=>{LS.del(K.tok);demo=false;DATA=null;d.remove();setup()}}
 function start(){render();load();clearInterval(timer);timer=setInterval(()=>{if(document.visibilityState==="visible")load()},60000)}
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&(demo||LS.get(K.tok))){load()}else if(DATA)render()});
