@@ -58,7 +58,11 @@ header{position:sticky;top:0;z-index:5;background:rgb(11 12 15/.92);backdrop-fil
 .spark{width:52px;height:26px;flex:none}
 .chev{width:18px;height:18px;flex:none;color:var(--mute);transition:transform .2s}
 .ah[aria-expanded=true] .chev{transform:rotate(180deg)}
-.ad{padding:0 14px 14px}
+.noanim .bar .bt i{animation:none}
+.ad{padding:0 14px 14px}.cb.ad{padding-top:0}.cb.ad>h3:first-child{margin-top:6px}
+.hd h1.sm{font-size:20px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hd .av{width:38px;height:38px;border-radius:10px;font-size:17px}
+.sec{font:400 21px/1.2 Marcellus,serif;margin:26px 4px 4px;color:var(--soft)}
+.back2{display:flex;align-items:center;justify-content:center;gap:8px;margin:18px 0 6px}.back2 svg{width:18px;height:18px}
 .ad h3{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--mute);margin:14px 0 8px;font-weight:600}
 .bars{display:grid;gap:7px}
 .bar{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:14.5px}
@@ -109,6 +113,8 @@ const COLS=["#8fb4ff","#f2c46d","#5fd39a","#ff9f8a","#c9a7ff","#6fd6e8","#f59fd0
 const IC={
  ref:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/></svg>',
  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+ next:'<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
+ back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>',
  chev:'<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'};
 const PER=[["hoy","Hoy",0],["7","7 días",6],["30","30 días",29],["90","3 meses",89]];
 let per=LS.get(K.per)||"7",DATA=null,busy=false,timer=null,demo=false,lastErr="",openApp=LS.get(K.open)||"";
@@ -165,7 +171,7 @@ async function load(){
     /* país y equipo solo vienen por día completo: si se cuenta «desde» una hora, se empieza al día siguiente */
     if(D0&&D0>R0.qs){const d=new Date(D0);d.setHours(24,0,0,0);sq={start:d.toISOString().replace(/\.\d+Z$/,"Z"),end:q.end};side.from=d}
     if(!side.from||side.from<new Date()){for(const p of["locations","systems","browsers","sizes"]){try{side[p]=(await api("/stats/"+p,Object.assign({limit:8},sq))).stats||[]}catch(e){side[p]=[]}await wait(400)}}else side.later=true
-    DATA={total,hits,side,known,sq,at:new Date()};lastErr="";SUB.old=SUB.c;SUB.c={};demoSide()}
+    if(!DATA)ANIM=true;DATA={total,hits,side,known,sq,at:new Date()};lastErr="";SUB.old=SUB.c;SUB.c={};demoSide()}
   catch(e){lastErr=e.message==="token"?"token":e.message}
   busy=false;render()}
 
@@ -182,6 +188,10 @@ function group(){
     let a=Object.values(apps).find(x=>(x.title+" "+x.key).toLowerCase().includes(pre.toLowerCase()));
     if(!a)a=apps["ev:"+pre]||(apps["ev:"+pre]={key:"ev:"+pre,title:pre,visits:0,stats:[],ev:[],pids:[]});
     a.short=pre;a.ev.push({act,n:h.count,stats:h.stats})});
+  /* el portafolio solo manda eventos «demo:<tag> · Portafolio · …»: se muestra como una app más */
+  DATA.hits.filter(h=>h.event&&/^demo:[^·]+ · Portafolio · /.test(h.path)).forEach(h=>{const act=h.path.split(" · ").slice(2).join(" · ");
+    const a=apps.apps||(apps.apps={key:"apps",title:"Portafolio",visits:0,stats:[],ev:[],short:"Portafolio",pids:[],folio:true});
+    if(act==="abrió el portafolio"){a.visits+=h.count;a.stats=a.stats.concat(h.stats||[]);a.pids.push(h.path_id)}else a.ev.push({act,n:h.count,stats:h.stats})});
   const list=Object.values(apps).map(a=>{const hh=localHourly(a.stats).concat(...a.ev.map(e=>localHourly(e.stats)));
     a.last=hh.length?Math.max(...hh.map(x=>+x.t))+3599e3:0;if(a.last>Date.now())a.last=Date.now();
     a.actions=a.ev.filter(e=>!/^usó \d+ min$/.test(e.act)).reduce((s,e)=>s+e.n,0);return a});
@@ -210,25 +220,27 @@ function sideFor(id,pids,pages){/* devuelve lo que ya llegó, o null y lo pide *
   return prev}
 function dayNote(){const S=DATA.side;return S.from?`El país y el equipo se guardan por día completo: con «Empezar a contar» se ven desde el ${S.from.getDate()} ${MES[S.from.getMonth()]}.`:"El país y el equipo se guardan por día completo."}
 function appSide(a){
-  if(DATA.side.later)return`<h3>Desde dónde</h3><p class="note">Aparecerá desde mañana: el país se guarda por día completo y hoy empezaste a contar.</p>`;
-  if(!a.pids.length)return`<h3>Desde dónde</h3><p class="note">Sin visitas en estos días.</p>`;
+  const card=(t,b,em)=>`<section class="card"><div class="ch"><h2>${t}</h2>${em?`<em>${em}</em>`:""}</div><div class="cb">${b}</div></section>`;
+  if(DATA.side.later)return card("Desde dónde",`<p class="empty">Aparecerá desde mañana: el país y el equipo se guardan por día completo y hoy empezaste a contar.</p>`);
+  if(!a.pids.length)return card("Desde dónde",`<p class="empty">Sin visitas en estos días.</p>`);
   const r=sideFor("app:"+a.key,a.pids,["locations","systems","sizes"]);
-  if(!r)return`<h3>Desde dónde</h3><p class="empty">Cargando…</p>`;
-  let s=`<h3>Desde dónde</h3>${r.locations===null?'<p class="note">No pude cargarlo ahora.</p>':barsList(locItems(r.locations),a.col)}`;
-  s+=`<h3>Con qué equipo</h3><div class="list2"><div><h3 class="note" style="margin:0 0 8px">Sistema</h3>${r.systems?barsList(r.systems.filter(x=>x.count>0).map(x=>[x.name||x.id,x.count]),a.col):'<p class="note">—</p>'}</div><div><h3 class="note" style="margin:0 0 8px">Pantalla</h3>${r.sizes?barsList(r.sizes.filter(x=>x.count>0).map(x=>[sizeName(x.name||x.id),x.count]),a.col):'<p class="note">—</p>'}</div></div>`;
-  return s+`<p class="note">${dayNote()} Cuenta personas distintas por día, por eso puede sumar distinto que las visitas.</p>`}
+  if(!r)return card("Desde dónde",`<p class="empty">Cargando…</p>`);
+  const sys=r.systems?barsList(r.systems.filter(x=>x.count>0).map(x=>[x.name||x.id,x.count]),a.col):'<p class="note">—</p>';
+  const siz=r.sizes?barsList(r.sizes.filter(x=>x.count>0).map(x=>[sizeName(x.name||x.id),x.count]),a.col):'<p class="note">—</p>';
+  return card("Desde dónde",(r.locations===null?'<p class="note">No pude cargarlo ahora.</p>':barsList(locItems(r.locations),a.col))+`<p class="note">${dayNote()} Cuenta personas distintas por día, por eso puede no coincidir con las visitas.</p>`,"país aproximado")
+    +card("Con qué equipo",`<div class="list2"><div><h3 class="note" style="margin:0 0 8px">Sistema</h3>${sys}</div><div><h3 class="note" style="margin:0 0 8px">Pantalla</h3>${siz}</div></div>`)}
 function demoSide(){/* países de las demos: se piden en segundo plano después de la carga */
   if(!DATA||DATA.side.later)return;demos().forEach(p=>Object.values(p.apps).forEach(a=>sideFor("demo:"+p.who+"|"+a.app,a.open.length?a.open:a.all,["locations"])))}
 function demoLoc(p,a){if(DATA.side.later)return"";const r=sideFor("demo:"+p.who+"|"+a.app,a.open.length?a.open:a.all,["locations"]);
   if(!r)return' <span class="dloc">…</span>';if(r.none||!r.locations)return"";const L=locItems(r.locations);if(!L.length)return' <span class="dloc">→ país aún sin datos</span>';
   return' <span class="dloc">→ '+L.slice(0,3).map(([n,c])=>esc(n)+(L.length>1?" "+c:"")).join(" · ")+"</span>"}
 /* ---------- dibujos ---------- */
-function barsChart(vals,labels,h=150){
+function barsChart(vals,labels,h=150,col){
   const W=340,H=h,pb=20,pt=14,max=Math.max(1,...vals),n=vals.length,gw=W/n,bw=Math.max(3,Math.min(26,gw*.62));
   let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Gráfico de actividad">`;
   for(let i=1;i<=3;i++){const y=pt+(H-pb-pt)*(1-i/3);s+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="#262a34" stroke-dasharray="2 4"/>`}
   vals.forEach((v,i)=>{const bh=(H-pb-pt)*v/max,x=i*gw+(gw-bw)/2,y=H-pb-bh;
-    s+=`<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(bh,v?2:0)}" rx="3" fill="${v?"#8fb4ff":"#262a34"}"><animate attributeName="height" from="0" to="${Math.max(bh,v?2:0)}" dur=".5s"/><animate attributeName="y" from="${H-pb}" to="${y}" dur=".5s"/></rect>`;
+    s+=`<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(bh,v?2:0)}" rx="3" fill="${v?(col||"#8fb4ff"):"#262a34"}">${ANIM?`<animate attributeName="height" from="0" to="${Math.max(bh,v?2:0)}" dur=".5s"/><animate attributeName="y" from="${H-pb}" to="${y}" dur=".5s"/>`:""}</rect>`;
     if(v&&(n<=14||v===max))s+=`<text x="${x+bw/2}" y="${y-4}" text-anchor="middle" style="fill:#c4cbd7">${v}</text>`;
     const step=n>14?Math.ceil(n/7):1;if(i%step===0||i===n-1&&n<=14)s+=`<text x="${x+bw/2}" y="${H-5}" text-anchor="middle">${labels[i]}</text>`});
   return s+"</svg>"}
@@ -254,53 +266,78 @@ function setup(){
   <p class="priv">El token no sale de este celular. Solo da permiso para leer las estadísticas.</p></div>`;
   $("#go").onclick=()=>{const v=$("#tk").value.trim();if(!v)return;LS.set(K.tok,v);demo=false;start()};
   $("#dm").onclick=()=>{demo=true;start()}}
+/* ---------- pantallas: inicio (todas las apps) · una app · demos ---------- */
+function view(){const h=decodeURIComponent(location.hash.slice(1));if(h.startsWith("app="))return{app:h.slice(4)};if(h==="demos")return{demos:true};return{}}
+function go(hash){ANIM=true;if(!view().app&&!view().demos)history.pushState({pav:1},"","#"+hash);else history.replaceState({pav:1},"","#"+hash);render();scrollTo(0,0)}
+/* volver: si se entró desde el inicio, «atrás» del navegador (así también funciona el botón atrás del celular) */
+function back(){ANIM=true;if(history.state&&history.state.pav)history.back();else{history.replaceState(null,"",location.pathname+location.search);render();scrollTo(0,0)}}
+let ANIM=true;/* las barras se animan solo al entrar en una pantalla, no en cada actualización */
+addEventListener("popstate",()=>{ANIM=true;render();scrollTo(0,0)});
+function avatar(a){return`<span class="av" style="background:${a.col}">${esc((a.title||"?").replace(/^(Escapada a|Mis|App)\s+/i,"").trim()[0]||"?")}${/^ev:|^\(/.test(a.key)?"":`<img src="../${encodeURIComponent(a.key)}/apple-touch-icon.png" alt="" loading="lazy" onerror="this.remove()">`}</span>`}
+function lastTxt(a){const recent=a.last&&Date.now()-a.last<3600e3;return a.last?(recent?'<i>● </i>':"")+"Última vez "+ago(a.last):(LS.get("pav-desde")?"Nada desde que empezaste a contar":"Sin actividad")}
+function actCard(stats,col,title){const r=range();let vals,labels,sub;
+  if(per==="hoy"){const by=new Array(24).fill(0);const today=ymd(new Date());localHourly(stats).forEach(x=>{if(ymd(x.t)===today)by[x.t.getHours()]+=x.n});vals=by;labels=by.map((_,i)=>i%3?"":i+"h");sub="visitas por hora"}
+  else{const map={};stats.forEach(s=>{map[s.day]=(map[s.day]||0)+(s.daily||0)});const days=[];const d=new Date(r.start+"T12:00:00");for(let i=0;i<r.days;i++){days.push(ymd(d));d.setDate(d.getDate()+1)}vals=days.map(x=>map[x]||0);labels=days.map(dlabel);sub="visitas por día"}
+  return`<section class="card"><div class="ch"><h2>${title||"Actividad"}</h2><em>${sub}</em></div><div class="cb">${barsChart(vals,labels,150,col)}</div></section>`}
+function kpis(list){return`<div class="kpis">${list.map(([v,l])=>`<div class="kpi"><b>${typeof v==="number"?fmtN(v):v}</b><span>${l}</span></div>`).join("")}</div>`}
+function demoBlock(p,a,i){const top=a.acts.sort((x,y)=>y[1]-x[1]).slice(0,6);const col=COLS[(i+3)%COLS.length];
+  return`<div class="dp-a"><b>${esc(a.app)}</b>${demoLoc(p,a)} <span class="note">· abrió ${a.opens} ${a.opens===1?"vez":"veces"}${a.max?" · llegó a "+a.max+" min seguidos":""}</span>${top.length?barsList(top,col):'<div class="empty">Solo la abrió, sin tocar nada.</div>'}</div>`}
+function person(p,i,inner){return`<div class="demo-p"><div class="dp-h"><span class="av" style="background:${COLS[(i+3)%COLS.length]}">${esc(p.who[0].toUpperCase())}</span><span class="an"><b>${esc(p.who==="portafolio"?"Portafolio sin etiqueta":p.who[0].toUpperCase()+p.who.slice(1))}</b><small>Última vez ${p.last?ago(p.last):"—"}</small></span></div>${inner}</div>`}
+const matchApp=(a,name)=>(a.title+" "+a.key).toLowerCase().includes(String(name).toLowerCase());
 function render(){
   if(!demo&&!LS.get(K.tok)||lastErr==="token"&&!DATA){if(lastErr==="token")LS.del(K.tok);return setup()}
-  const r=range();
-  let h=`<header><div class="hd"><h1>Panel Apps de Viajes<small><span class="live ${document.visibilityState==="visible"?"":"off"}"></span>${DATA?"Actualizado "+pad(DATA.at.getHours())+":"+pad(DATA.at.getMinutes())+" · en vivo"+(LS.get("pav-desde")?" · desde el "+fdesde():""):"Cargando…"}</small></h1>
-    <button class="ib${busy?" spin":""}" id="rf" aria-label="Actualizar">${IC.ref}</button><button class="ib" id="cf" aria-label="Ajustes">${IC.gear}</button></div></header><div class="wrap">`;
+  const V=view();const apps=DATA?group():[];const A=V.app?apps.find(a=>a.key===V.app):null;
+  if(V.app&&DATA&&!A){history.replaceState(null,"",location.pathname+location.search);return render()}
+  const sub=`<small><span class="live ${document.visibilityState==="visible"?"":"off"}"></span>${DATA?"Actualizado "+pad(DATA.at.getHours())+":"+pad(DATA.at.getMinutes())+" · en vivo"+(LS.get("pav-desde")?" · desde el "+fdesde():""):"Cargando…"}</small>`;
+  const inner=V.app||V.demos;
+  let h=`<header><div class="hd">${inner?`<button class="ib bk" id="bk" aria-label="Volver a todas las apps">${IC.back}</button>`:""}${A?avatar(A):""}<h1${inner?' class="sm"':""}>${A?esc(A.title):V.demos?"Demos y promoción":"Panel Apps de Viajes"}${sub}</h1>
+    <button class="ib${busy?" spin":""}" id="rf" aria-label="Actualizar">${IC.ref}</button>${inner?"":`<button class="ib" id="cf" aria-label="Ajustes">${IC.gear}</button>`}</div></header><div class="wrap">`;
   if(demo)h+='<div class="demo">Datos de ejemplo. Pega tu token en Ajustes para ver los reales.</div>';
   h+='<div class="seg" role="group" aria-label="Periodo">'+PER.map(p=>`<button data-per="${p[0]}" aria-pressed="${p[0]===per}">${p[1]}</button>`).join("")+"</div>";
   if(lastErr&&lastErr!=="token")h+=`<div class="err">${DATA?"No pude actualizar ahora. Muestro lo último que cargó; vuelvo a intentar en un minuto.":"No pude conectar con GoatCounter. Toca el botón de actualizar en unos segundos."}</div>`;
   if(!DATA){$("#root").innerHTML=h+'<p class="empty">Cargando estadísticas…</p></div>';bind();return}
-  const apps=group();const T=DATA.total;
-  const visits=apps.reduce((s,a)=>s+a.visits,0),acts=apps.reduce((s,a)=>s+a.actions,0),used=apps.filter(a=>a.visits||a.actions).length;
-  h+=`<div class="kpis"><div class="kpi"><b>${fmtN(visits)}</b><span>${visits===1?"visita":"visitas"}</span></div><div class="kpi"><b>${fmtN(acts)}</b><span>${acts===1?"toque":"toques"}</span></div><div class="kpi"><b>${used}</b><span>${used===1?"app usada":"apps usadas"}</span></div></div>`;
-  /* actividad */
-  let vals,labels,sub;
-  if(per==="hoy"){const hh=apps.flatMap(a=>localHourly(a.stats));const by=new Array(24).fill(0);const today=ymd(new Date());hh.forEach(x=>{if(ymd(x.t)===today)by[x.t.getHours()]+=x.n});vals=by;labels=by.map((_,i)=>i%3?"":i+"h");sub="visitas por hora"}
-  else{const map={};apps.forEach(a=>a.stats.forEach(s=>{map[s.day]=(map[s.day]||0)+(s.daily||0)}));const days=[];const d=new Date(r.start+"T12:00:00");for(let i=0;i<r.days;i++){days.push(ymd(d));d.setDate(d.getDate()+1)}vals=days.map(x=>map[x]||0);labels=days.map(dlabel);sub="visitas por día"}
-  h+=`<section class="card"><div class="ch"><h2>Actividad</h2><em>${sub}</em></div><div class="cb">${barsChart(vals,labels)}</div></section>`;
-  /* apps */
-  h+=`<section class="card"><div class="ch"><h2>Tus apps</h2><em>toca para ver el detalle</em></div><div>`;
-  if(!apps.length)h+='<div class="cb empty">Sin visitas en este periodo.</div>';
-  apps.forEach(a=>{const op=openApp===a.key;
-    const dmap={};a.stats.forEach(s=>{dmap[s.day]=(dmap[s.day]||0)+(s.daily||0)});const d=new Date(r.start+"T12:00:00");const sv=[];for(let i=0;i<Math.min(r.days,30);i++){sv.push(dmap[ymd(d)]||0);d.setDate(d.getDate()+1)}
-    const recent=a.last&&Date.now()-a.last<3600e3;
-    h+=`<div class="app"><button class="ah" data-app="${esc(a.key)}" aria-expanded="${op}">
-      <span class="av" style="background:${a.col}">${esc((a.title||"?").replace(/^(Escapada a|Mis|App)\s+/i,"").trim()[0]||"?")}${/^ev:|^\(/.test(a.key)?"":`<img src="../${encodeURIComponent(a.key)}/apple-touch-icon.png" alt="" loading="lazy" onerror="this.remove()">`}</span>
-      <span class="an"><b>${esc(a.title)}</b><small>${a.last?(recent?'<i>● </i>':"")+"Última vez "+ago(a.last):(LS.get("pav-desde")?"Nada desde que empezaste a contar":"Sin actividad")}</small></span>
-      ${per==="hoy"?"":spark(sv,a.col)}
-      <span class="am"><b>${a.visits}</b><span>${a.visits===1?"visita":"visitas"}</span></span>${IC.chev}</button>`;
-    if(op)h+=`<div class="ad">${detail(a)}</div>`;h+="</div>"});
-  h+="</div></section>";
   const D=demos();
-  h+=`<section class="card"><div class="ch"><h2>Demos y promoción</h2><em>enlaces con ?de=</em></div><div class="cb">`;
-  if(!D.length)h+=`<p class="empty">Nadie ha abierto todavía un enlace de demo en este periodo.</p><p class="note">Manda tus apps con <b>?de=nombre</b> al final del enlace, por ejemplo …/demo-escapada-a-toledo/?de=cata</p>`;
-  D.forEach((p,i)=>{h+=`<div class="demo-p"><div class="dp-h"><span class="av" style="background:${COLS[(i+3)%COLS.length]}">${esc(p.who[0].toUpperCase())}</span><span class="an"><b>${esc(p.who[0].toUpperCase()+p.who.slice(1))}</b><small>Última vez ${p.last?ago(p.last):"—"}</small></span></div>`;
-    Object.values(p.apps).forEach(a=>{const top=a.acts.sort((x,y)=>y[1]-x[1]).slice(0,6);
-      h+=`<div class="dp-a"><b>${esc(a.app)}</b>${demoLoc(p,a)} <span class="note">· abrió ${a.opens} ${a.opens===1?"vez":"veces"}${a.max?" · llegó a "+a.max+" min seguidos":""}</span>${top.length?barsList(top,COLS[(i+3)%COLS.length]):'<div class="empty">Solo la abrió, sin tocar nada.</div>'}</div>`});
-    h+="</div>"});
+  if(A)h+=appScreen(A,D);else if(V.demos)h+=demosScreen(D);else h+=homeScreen(apps,D);
+  h+=(inner?`<button class="btn g back2" id="bk2">${IC.back} Volver a todas las apps</button>`:"")+'<p class="priv">Datos anónimos: sin nombres, sin cookies y sin ubicación exacta.</p></div>';
+  const R=$("#root");R.classList.toggle("noanim",!ANIM);R.innerHTML=h;bind();ANIM=false}
+function homeScreen(apps,D){
+  const visits=apps.filter(a=>!a.folio).reduce((s,a)=>s+a.visits,0),acts=apps.reduce((s,a)=>s+a.actions,0),used=apps.filter(a=>!a.folio&&(a.visits||a.actions)).length;
+  let h=kpis([[visits,visits===1?"visita":"visitas"],[acts,acts===1?"toque":"toques"],[used,used===1?"app usada":"apps usadas"]]);
+  const r=range();
+  h+=`<section class="card"><div class="ch"><h2>Tus apps</h2><em>toca una para ver todo lo suyo</em></div><div>`;
+  if(!apps.length)h+='<div class="cb empty">Sin visitas en este periodo.</div>';
+  apps.forEach(a=>{const dmap={};a.stats.forEach(s=>{dmap[s.day]=(dmap[s.day]||0)+(s.daily||0)});const d=new Date(r.start+"T12:00:00");const sv=[];for(let i=0;i<Math.min(r.days,30);i++){sv.push(dmap[ymd(d)]||0);d.setDate(d.getDate()+1)}
+    h+=`<div class="app"><button class="ah" data-app="${esc(a.key)}">${avatar(a)}
+      <span class="an"><b>${esc(a.title)}</b><small>${lastTxt(a)}</small></span>${per==="hoy"?"":spark(sv,a.col)}
+      <span class="am"><b>${a.visits}</b><span>${a.folio?(a.visits===1?"apertura":"aperturas"):(a.visits===1?"visita":"visitas")}</span></span>${IC.next}</button></div>`});
+  h+=`<div class="app"><button class="ah" data-demos="1"><span class="av" style="background:#ff9f8a">★</span><span class="an"><b>Demos y promoción</b><small>${D.length?D.length+(D.length===1?" persona abrió un enlace con ?de=":" personas abrieron enlaces con ?de="):"Nadie ha abierto un enlace de demo en este periodo"}</small></span>${IC.next}</button></div>`;
   h+="</div></section>";
-  /* desde dónde y equipos */
-  const S=DATA.side;const tl=x=>(x||[]).filter(s=>s.count>0).map(s=>[(s.name||s.id||"?"),s.count]);const tloc=locItems;
-  if(S.later)h+=`<section class="card"><div class="ch"><h2>Desde dónde y con qué equipo</h2></div><div class="cb"><p class="empty">Aparecerá desde mañana. GoatCounter cuenta el país y el equipo por día completo, así que el día en que empezaste a contar no se puede separar.</p></div></section>`;
-  else{  h+=`<section class="card"><div class="ch"><h2>Desde dónde</h2><em>todas las apps juntas</em></div><div class="cb">${barsList(tloc(S.locations),"var(--ac2)")}<p class="note">Suma todas las apps, las demos y el portafolio (país aproximado). El de cada app está en su detalle, en «Tus apps», y el de cada demo, en «Demos y promoción». ${dayNote()}</p></div></section>`;
-  h+=`<section class="card"><div class="ch"><h2>Con qué equipo</h2><em>todas las apps juntas</em></div><div class="cb"><div class="list2"><div><h3 class="note" style="margin:0 0 8px">Sistema</h3>${barsList(tl(S.systems),"var(--ok)")}</div><div><h3 class="note" style="margin:0 0 8px">Navegador</h3>${barsList(tl(S.browsers),"#c9a7ff")}</div></div>
-    <h3 class="note" style="margin:14px 0 8px">Pantalla</h3>${barsList((S.sizes||[]).filter(s=>s.count>0).map(s=>[sizeName(s.name||s.id),s.count]),"#6fd6e8")}</div></section>`;
-  }
-h+='<p class="priv">Datos anónimos: sin nombres, sin cookies y sin ubicación exacta.</p></div>';
-  $("#root").innerHTML=h;bind()}
+  /* todas juntas */
+  h+=`<h2 class="sec">Todas las apps juntas</h2>`;
+  h+=actCard(apps.filter(a=>!a.folio).flatMap(a=>a.stats));
+  const S=DATA.side;const tl=x=>(x||[]).filter(s=>s.count>0).map(s=>[(s.name||s.id||"?"),s.count]);
+  if(S.later)h+=`<section class="card"><div class="ch"><h2>Desde dónde y con qué equipo</h2></div><div class="cb"><p class="empty">Aparecerá desde mañana. GoatCounter guarda el país y el equipo por día completo, así que el día en que empezaste a contar no se puede separar.</p></div></section>`;
+  else{h+=`<section class="card"><div class="ch"><h2>Desde dónde</h2><em>todas juntas</em></div><div class="cb">${barsList(locItems(S.locations),"var(--ac2)")}<p class="note">Suma todas las apps, las demos y el portafolio (país aproximado). Para ver el de una sola, entra en esa app. ${dayNote()}</p></div></section>`;
+    h+=`<section class="card"><div class="ch"><h2>Con qué equipo</h2><em>todas juntas</em></div><div class="cb"><div class="list2"><div><h3 class="note" style="margin:0 0 8px">Sistema</h3>${barsList(tl(S.systems),"var(--ok)")}</div><div><h3 class="note" style="margin:0 0 8px">Navegador</h3>${barsList(tl(S.browsers),"#c9a7ff")}</div></div>
+    <h3 class="note" style="margin:14px 0 8px">Pantalla</h3>${barsList((S.sizes||[]).filter(s=>s.count>0).map(s=>[sizeName(s.name||s.id),s.count]),"#6fd6e8")}</div></section>`}
+  return h}
+function appScreen(a,D){
+  const mine=D.map((p,i)=>({p,i,list:Object.values(p.apps).filter(x=>matchApp(a,x.app))})).filter(x=>x.list.length);
+  let h=kpis([[a.visits,a.folio?(a.visits===1?"apertura":"aperturas"):(a.visits===1?"visita":"visitas")],[a.actions,a.actions===1?"toque":"toques"],[mine.length,mine.length===1?"demo":"demos"]]);
+  h+=actCard(a.stats,a.col);
+  h+=`<section class="card"><div class="ch"><h2>Cómo la usan</h2></div><div class="cb ad">${detail(a)}</div></section>`;
+  h+=appSide(a);
+  if(!a.folio||mine.length){h+=`<section class="card"><div class="ch"><h2>Demos de esta app</h2><em>enlaces con ?de=</em></div><div class="cb">`;
+    if(!mine.length)h+=`<p class="empty">Nadie ha abierto esta app con un enlace de demo en este periodo.</p>`;
+    mine.forEach(({p,i,list})=>{h+=person(p,i,list.map(x=>demoBlock(p,x,i)).join(""))});
+    h+="</div></section>"}
+  return h}
+function demosScreen(D){
+  let h=`<section class="card"><div class="cb" style="padding-top:12px">`;
+  if(!D.length)h+=`<p class="empty">Nadie ha abierto todavía un enlace de demo en este periodo.</p>`;
+  D.forEach((p,i)=>{h+=person(p,i,Object.values(p.apps).map(a=>demoBlock(p,a,i)).join(""))});
+  h+=`<p class="note">Manda tus apps con <b>?de=nombre</b> al final del enlace, por ejemplo …/demo-escapada-a-toledo/?de=cata. Al lado de cada app sale el país desde donde la abrieron.</p></div></section>`;
+  return h}
 function fdesde(){const d=new Date(LS.get("pav-desde"));d.setMinutes(0,0,0);return d.getDate()+" "+MES[d.getMonth()]+" a las "+pad(d.getHours())+":"+pad(d.getMinutes())}
 function sizeName(s){const m={phone:"Celular",largephone:"Celular grande",tablet:"Tablet",desktop:"Computador",desktophd:"Computador grande",unknown:"Otra"};return m[String(s).toLowerCase()]||s}
 function detail(a){
@@ -311,10 +348,12 @@ function detail(a){
     else if(m=t.match(/^cómo llegar: (.+)$/))cat.go.push([m[1],e.n]);
     else if(m=t.match(/^usó (\d+) min$/))cat.time[m[1]]=(cat.time[m[1]]||0)+e.n;
     else if(m=t.match(/^estilo: (.+)$/))cat.style.push([m[1],e.n]);
+    else if(m=t.match(/^tocó: (.+)$/))(cat.tap=cat.tap||[]).push([m[1],e.n]);
     else cat.other.push([t,e.n])});
   const srt=x=>x.sort((p,q)=>q[1]-p[1]);
   const hh=localHourly(a.stats).concat(...a.ev.map(e=>localHourly(e.stats)));
   let s=`<h3>A qué hora la usan</h3>${heat(hh,a.col)}`;
+  if(a.folio){s+=`<h3>Apps que tocaron</h3>${barsList(srt(cat.tap||[]),a.col)}`;return s}
   s+=`<h3>Cuánto rato seguido</h3><div class="steps">${[1,5,15,30,60].map(m=>`<div class="step${cat.time[m]?" on":""}"><b>${cat.time[m]||0}</b><span>${m} min</span></div>`).join("")}</div><p class="note">Veces que alguien llegó a ese tiempo con la app en pantalla.</p>`;
   s+=`<h3>Pestañas</h3>${barsList(srt(cat.tab),a.col)}`;
   if(cat.stop.length)s+=`<h3>Paradas que abrieron</h3>${barsList(srt(cat.stop).slice(0,10),a.col)}`;
@@ -322,10 +361,12 @@ function detail(a){
   if(cat.other.length)s+=`<h3>Otras acciones</h3>${barsList(srt(cat.other),a.col)}`;
   if(cat.style.length)s+=`<h3>Estilo elegido</h3>${barsList(srt(cat.style),a.col)}`;
   if(!a.ev.length)s+='<p class="note">Esta app todavía no tiene el contador de acciones; solo se ven sus visitas.</p>';
-  return s+appSide(a)}
+  return s}
 function bind(){
-  document.querySelectorAll("[data-per]").forEach(b=>b.onclick=()=>{per=b.dataset.per;LS.set(K.per,per);DATA=null;render();load()});
-  document.querySelectorAll("[data-app]").forEach(b=>b.onclick=()=>{openApp=openApp===b.dataset.app?"":b.dataset.app;LS.set(K.open,openApp);render()});
+  document.querySelectorAll("[data-per]").forEach(b=>b.onclick=()=>{ANIM=true;per=b.dataset.per;LS.set(K.per,per);DATA=null;render();load()});
+  document.querySelectorAll("[data-app]").forEach(b=>b.onclick=()=>{go("app="+encodeURIComponent(b.dataset.app))});
+  document.querySelectorAll("[data-demos]").forEach(b=>b.onclick=()=>{go("demos")});
+  ["#bk","#bk2"].forEach(x=>{$(x)&&($(x).onclick=back)});
   $("#rf")&&($("#rf").onclick=load);
   $("#cf")&&($("#cf").onclick=settings)}
 function settings(){const d=document.createElement("div");d.className="sheet";
