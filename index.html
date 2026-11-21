@@ -59,6 +59,7 @@ header{position:sticky;top:0;z-index:5;background:rgb(11 12 15/.92);backdrop-fil
 .chev{width:18px;height:18px;flex:none;color:var(--mute);transition:transform .2s}
 .ah[aria-expanded=true] .chev{transform:rotate(180deg)}
 .noanim .bar .bt i{animation:none}
+.flg{width:20px;height:14px;object-fit:cover;border-radius:2px;vertical-align:-2px;margin-right:7px;box-shadow:0 0 0 1px rgb(255 255 255/.12)}
 .ad{padding:0 14px 14px}.cb.ad{padding-top:0}.cb.ad>h3:first-child{margin-top:6px}
 .hd h1.sm{font-size:20px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hd .av{width:38px;height:38px;border-radius:10px;font-size:17px}
 .sec{font:400 21px/1.2 Marcellus,serif;margin:26px 4px 4px;color:var(--soft)}
@@ -209,7 +210,9 @@ function demos(){const P={};
 /* ---------- desde dónde y equipo de UNA app o demo (include_paths) ---------- */
 const SUB={c:{},old:{}};/* caché de esta carga; mientras llega lo nuevo se muestra lo de la carga anterior (sin parpadeo) */
 const RN=(()=>{try{return new Intl.DisplayNames(["es"],{type:"region"})}catch(e){return null}})();
-function locItems(x){return(x||[]).filter(s=>s.count>0).map(s=>{const c=String(s.id||"").split("-")[0].toUpperCase();let n=s.name||s.id||"?";try{if(RN&&/^[A-Z]{2}$/.test(c))n=RN.of(c)}catch(e){}return[(flag(c)+n).trim(),s.count]})}
+/* bandera como imagen: Windows no dibuja los emojis de banderas (salía «CL Chile») */
+const flagImg=c=>/^[A-Z]{2}$/.test(c)?`<img class="flg" src="https://flagcdn.com/w40/${c.toLowerCase()}.png" alt="" loading="lazy" onerror="this.remove()">`:"";
+function locItems(x){return(x||[]).filter(s=>s.count>0).map(s=>{const c=String(s.id||"").split("-")[0].toUpperCase();let n=s.name||s.id||"?";try{if(RN&&/^[A-Z]{2}$/.test(c))n=RN.of(c)}catch(e){}return[n,s.count,flagImg(c)]})}
 function sideFor(id,pids,pages){/* devuelve lo que ya llegó, o null y lo pide */
   const S=DATA&&DATA.side;if(!S||S.later||!pids||!pids.length)return{none:true};
   id=per+"|"+(LS.get("pav-desde")||"")+"|"+id;const prev=SUB.old[id]&&SUB.old[id].done?SUB.old[id]:null;
@@ -233,7 +236,7 @@ function demoSide(){/* países de las demos: se piden en segundo plano después 
   if(!DATA||DATA.side.later)return;demos().forEach(p=>Object.values(p.apps).forEach(a=>sideFor("demo:"+p.who+"|"+a.app,a.open.length?a.open:a.all,["locations"])))}
 function demoLoc(p,a){if(DATA.side.later)return"";const r=sideFor("demo:"+p.who+"|"+a.app,a.open.length?a.open:a.all,["locations"]);
   if(!r)return' <span class="dloc">…</span>';if(r.none||!r.locations)return"";const L=locItems(r.locations);if(!L.length)return' <span class="dloc">→ país aún sin datos</span>';
-  return' <span class="dloc">→ '+L.slice(0,3).map(([n,c])=>esc(n)+(L.length>1?" "+c:"")).join(" · ")+"</span>"}
+  return' <span class="dloc">→ '+L.slice(0,3).map(([n,c,fl])=>fl+esc(n)+(L.length>1?" "+c:"")).join(" · ")+"</span>"}
 /* ---------- dibujos ---------- */
 function barsChart(vals,labels,h=150,col){
   const W=340,H=h,pb=20,pt=14,max=Math.max(1,...vals),n=vals.length,gw=W/n,bw=Math.max(3,Math.min(26,gw*.62));
@@ -248,7 +251,7 @@ function spark(vals,col){const W=64,H=28,max=Math.max(1,...vals),n=vals.length;i
   const pts=vals.map((v,i)=>[(i/(n-1))*W,H-2-(H-6)*v/max]);const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join("");
   return `<svg class="spark" viewBox="0 0 ${W} ${H}"><path d="${d} L${W} ${H} L0 ${H}Z" fill="${col}" opacity=".15"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/></svg>`}
 function barsList(items,col){if(!items.length)return'<div class="empty">Todavía nada.</div>';const max=Math.max(...items.map(x=>x[1]));
-  return '<div class="bars">'+items.map(([l,v])=>`<div class="bar"><span class="bl">${esc(l)}</span><span class="bv">${v}</span><span class="bt"><i style="width:${Math.max(4,100*v/max)}%;background:${col||"var(--ac)"}"></i></span></div>`).join("")+"</div>"}
+  return '<div class="bars">'+items.map(([l,v,h])=>`<div class="bar"><span class="bl">${h||""}${esc(l)}</span><span class="bv">${v}</span><span class="bt"><i style="width:${Math.max(4,100*v/max)}%;background:${col||"var(--ac)"}"></i></span></div>`).join("")+"</div>"}
 function heat(hh,col){const by=new Array(24).fill(0);hh.forEach(x=>{by[x.t.getHours()]+=x.n});const max=Math.max(1,...by);
   return `<div class="heat">${by.map((v,h)=>`<i title="${h}:00 · ${v}" style="${v?`background:${col};opacity:${.25+.75*v/max}`:""}"></i>`).join("")}</div><div class="hl"><span>0 h</span><span>6</span><span>12</span><span>18</span><span>23 h</span></div>`}
 const flag=c=>{c=String(c||"").split("-")[0].toUpperCase();return /^[A-Z]{2}$/.test(c)?String.fromCodePoint(...[...c].map(x=>127397+x.charCodeAt(0)))+" ":""};
