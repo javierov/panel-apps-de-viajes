@@ -223,6 +223,8 @@ function sideFor(id,pids,pages){/* devuelve lo que ya llegó, o null y lo pide *
   if(prev)Object.assign(o,prev,{done:false});
   (async()=>{for(const p of pages){try{o[p]=(await api("/stats/"+p,Object.assign({limit:p==="locations"?12:6,include_paths:pids.join(",")},DATA.sq))).stats||[]}catch(e){o[p]=null}}o.done=true;if(SUB.c===mine)render()})();
   return prev}
+/* el país lo calcula GoatCounter con la IP de la conexión, no con la ubicación del teléfono */
+const CONX="El país sale de la conexión a internet, no de dónde está la persona: con datos móviles de una tarjeta chilena suele salir Chile aunque estén en España; con wifi o una tarjeta española, sale España.";
 function dayNote(){const S=DATA.side;return S.from?`El país y el equipo se guardan por día completo: con «Empezar a contar» se ven desde el ${S.from.getDate()} ${MES[S.from.getMonth()]}.`:"El país y el equipo se guardan por día completo."}
 function appSide(a){
   const card=(t,b,em)=>`<section class="card"><div class="ch"><h2>${t}</h2>${em?`<em>${em}</em>`:""}</div><div class="cb">${b}</div></section>`;
@@ -232,7 +234,7 @@ function appSide(a){
   if(!r)return card("Desde dónde",`<p class="empty">Cargando…</p>`);
   const sys=r.systems?barsList(r.systems.filter(x=>x.count>0).map(x=>[x.name||x.id,x.count]),a.col):'<p class="note">—</p>';
   const siz=r.sizes?barsList(r.sizes.filter(x=>x.count>0).map(x=>[sizeName(x.name||x.id),x.count]),a.col):'<p class="note">—</p>';
-  return card("Desde dónde",(r.locations===null?'<p class="note">No pude cargarlo ahora.</p>':barsList(locItems(r.locations),a.col))+`<p class="note">${dayNote()} Cuenta personas distintas por día, por eso puede no coincidir con las visitas.</p>`,"país aproximado")
+  return card("Desde dónde",(r.locations===null?'<p class="note">No pude cargarlo ahora.</p>':barsList(locItems(r.locations),a.col))+`<p class="note">${CONX} ${dayNote()} Cuenta personas distintas por día, por eso puede no coincidir con las visitas.</p>`,"según su conexión a internet")
     +card("Con qué equipo",`<div class="list2"><div><h3 class="note" style="margin:0 0 8px">Sistema</h3>${sys}</div><div><h3 class="note" style="margin:0 0 8px">Pantalla</h3>${siz}</div></div>`)}
 function demoSide(){/* países de las demos: se piden en segundo plano después de la carga */
   if(!DATA||DATA.side.later)return;demos().forEach(p=>Object.values(p.apps).forEach(a=>sideFor("demo:"+p.who+"|"+a.app,a.open.length?a.open:a.all,["locations"])))}
@@ -323,7 +325,7 @@ function homeScreen(apps,D){
   h+=actCard(apps.filter(a=>!a.folio).flatMap(a=>a.stats));
   const S=DATA.side;const tl=x=>(x||[]).filter(s=>s.count>0).map(s=>[(s.name||s.id||"?"),s.count]);
   if(S.later)h+=`<section class="card"><div class="ch"><h2>Desde dónde y con qué equipo</h2></div><div class="cb"><p class="empty">Aparecerá desde mañana. GoatCounter guarda el país y el equipo por día completo, así que el día en que empezaste a contar no se puede separar.</p></div></section>`;
-  else{h+=`<section class="card"><div class="ch"><h2>Desde dónde</h2><em>todas juntas</em></div><div class="cb">${barsList(locItems(S.locations),"var(--ac2)")}<p class="note">Suma todas las apps, las demos y el portafolio (país aproximado). Para ver el de una sola, entra en esa app. ${dayNote()}</p></div></section>`;
+  else{h+=`<section class="card"><div class="ch"><h2>Desde dónde</h2><em>según su conexión a internet</em></div><div class="cb">${barsList(locItems(S.locations),"var(--ac2)")}<p class="note">Suma todas las apps, las demos y el portafolio. ${CONX} Para ver el de una sola, entra en esa app. ${dayNote()}</p></div></section>`;
     h+=`<section class="card"><div class="ch"><h2>Con qué equipo</h2><em>todas juntas</em></div><div class="cb"><div class="list2"><div><h3 class="note" style="margin:0 0 8px">Sistema</h3>${barsList(tl(S.systems),"var(--ok)")}</div><div><h3 class="note" style="margin:0 0 8px">Navegador</h3>${barsList(tl(S.browsers),"#c9a7ff")}</div></div>
     <h3 class="note" style="margin:14px 0 8px">Pantalla</h3>${barsList((S.sizes||[]).filter(s=>s.count>0).map(s=>[sizeName(s.name||s.id),s.count]),"#6fd6e8")}</div></section>`}
   return h}
