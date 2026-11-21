@@ -177,13 +177,15 @@ async function load(){
   busy=false;render()}
 
 /* ---------- agrupar por app ---------- */
+/* clave de la app según la ruta: /demo-x/… → «demo-x»; las apps guardadas dentro del portafolio (/apps/s21-bny/…) → «apps/s21-bny» */
+function appKey(p){const seg=String(p).replace(/^\/+|\/+$/g,"").split("/");return(seg[0]==="apps"&&seg[1]?"apps/"+seg[1]:seg[0])||"(inicio)"}
 function group(){
   const apps={},byName={};
   const pv=DATA.hits.filter(h=>!h.event),ev=DATA.hits.filter(h=>h.event&&!/^demo:/.test(h.path));
-  pv.forEach(h=>{const key=h.path.replace(/^\/+|\/+$/g,"").split("/")[0]||"(inicio)";
+  pv.forEach(h=>{const key=appKey(h.path);
     const a=apps[key]||(apps[key]={key,title:"",visits:0,stats:[],ev:[],short:"",pids:[]});
     a.visits+=h.count;a.pids.push(h.path_id);if(!a.title&&h.title)a.title=h.title;a.stats=a.stats.concat(h.stats||[])});
-  (DATA.known||[]).forEach(h=>{const key=h.path.replace(/^\/+|\/+$/g,"").split("/")[0]||"(inicio)";if(!apps[key])apps[key]={key,title:h.title||"",visits:0,stats:[],ev:[],short:"",pids:[]}});
+  (DATA.known||[]).forEach(h=>{const key=appKey(h.path);if(!apps[key])apps[key]={key,title:h.title||"",visits:0,stats:[],ev:[],short:"",pids:[]}});
   Object.values(apps).forEach(a=>{a.title=a.title||a.key.replace(/^demo-/,"").replace(/-/g," ")});
   ev.forEach(h=>{const i=h.path.indexOf(" · ");const pre=i>0?h.path.slice(0,i):"Otras";const act=i>0?h.path.slice(i+3):h.path;
     let a=Object.values(apps).find(x=>(x.title+" "+x.key).toLowerCase().includes(pre.toLowerCase()));
@@ -191,7 +193,7 @@ function group(){
     a.short=pre;a.ev.push({act,n:h.count,stats:h.stats})});
   /* el portafolio solo manda eventos «demo:<tag> · Portafolio · …»: se muestra como una app más */
   DATA.hits.filter(h=>h.event&&/^demo:[^·]+ · Portafolio · /.test(h.path)).forEach(h=>{const act=h.path.split(" · ").slice(2).join(" · ");
-    const a=apps.apps||(apps.apps={key:"apps",title:"Portafolio",visits:0,stats:[],ev:[],short:"Portafolio",pids:[],folio:true});
+    const a=apps["(portafolio)"]||(apps["(portafolio)"]={key:"(portafolio)",title:"Portafolio",visits:0,stats:[],ev:[],short:"Portafolio",pids:[],folio:true});
     if(act==="abrió el portafolio"){a.visits+=h.count;a.stats=a.stats.concat(h.stats||[]);a.pids.push(h.path_id)}else a.ev.push({act,n:h.count,stats:h.stats})});
   const list=Object.values(apps).map(a=>{const hh=localHourly(a.stats).concat(...a.ev.map(e=>localHourly(e.stats)));
     a.last=hh.length?Math.max(...hh.map(x=>+x.t))+3599e3:0;if(a.last>Date.now())a.last=Date.now();
@@ -276,7 +278,7 @@ function go(hash){ANIM=true;if(!view().app&&!view().demos)history.pushState({pav
 function back(){ANIM=true;if(history.state&&history.state.pav)history.back();else{history.replaceState(null,"",location.pathname+location.search);render();scrollTo(0,0)}}
 let ANIM=true;/* las barras se animan solo al entrar en una pantalla, no en cada actualización */
 addEventListener("popstate",()=>{ANIM=true;render();scrollTo(0,0)});
-function avatar(a){return`<span class="av" style="background:${a.col}">${esc((a.title||"?").replace(/^(Escapada a|Mis|App)\s+/i,"").trim()[0]||"?")}${/^ev:|^\(/.test(a.key)?"":`<img src="../${encodeURIComponent(a.key)}/apple-touch-icon.png" alt="" loading="lazy" onerror="this.remove()">`}</span>`}
+function avatar(a){return`<span class="av" style="background:${a.col}">${esc((a.title||"?").replace(/^(Escapada a|Mis|App)\s+/i,"").trim()[0]||"?")}${/^ev:|^\(/.test(a.key)?"":`<img src="../${a.key.split("/").map(encodeURIComponent).join("/")}/apple-touch-icon.png" alt="" loading="lazy" onerror="this.remove()">`}</span>`}
 function lastTxt(a){const recent=a.last&&Date.now()-a.last<3600e3;return a.last?(recent?'<i>● </i>':"")+"Última vez "+ago(a.last):(LS.get("pav-desde")?"Nada desde que empezaste a contar":"Sin actividad")}
 function actCard(stats,col,title){const r=range();let vals,labels,sub;
   if(per==="hoy"){const by=new Array(24).fill(0);const today=ymd(new Date());localHourly(stats).forEach(x=>{if(ymd(x.t)===today)by[x.t.getHours()]+=x.n});vals=by;labels=by.map((_,i)=>i%3?"":i+"h");sub="visitas por hora"}
