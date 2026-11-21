@@ -77,7 +77,7 @@ header{position:sticky;top:0;z-index:5;background:rgb(11 12 15/.92);backdrop-fil
 .empty{color:var(--mute);font-size:14.5px;padding:4px 0}
 .demo-p{border-top:1px solid var(--line);padding:12px 0}.demo-p:first-child{border-top:0;padding-top:4px}
 .dp-h{display:flex;gap:12px;align-items:center;margin-bottom:8px}
-.dp-a{margin:10px 0 0}.dp-a>b{font-size:15.5px}.dp-a .bars{margin-top:8px}
+.dp-a{margin:10px 0 0}.dloc{font-size:14px;color:var(--soft)}.dp-a>b{font-size:15.5px}.dp-a .bars{margin-top:8px}
 .list2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .setup{max-width:520px;margin:40px auto;padding:0 18px}
 .setup h1{font:400 30px/1.15 Marcellus,serif;margin:0 0 8px}
@@ -139,7 +139,10 @@ async function api(path,params,tries=0){
   try{return await api1(path,params)}catch(e){
     /* GoatCounter permite 4 consultas por segundo: si se pasa, el navegador solo ve «Failed to fetch». Se espera y se reintenta */
     if(e.message!=="token"&&tries<3){await wait(1200*(tries+1));return api(path,params,tries+1)}throw e}}
-async function api1(path,params){
+/* todas las consultas pasan por una cola: así las de cada app o demo no chocan con la carga principal */
+let QQ=Promise.resolve();
+function api1(path,params){const r=QQ.then(()=>api1x(path,params));QQ=r.catch(()=>{}).then(()=>wait(300));return r}
+async function api1x(path,params){
   const u=new URL(GC+path);Object.entries(params||{}).forEach(([k,v])=>u.searchParams.set(k,v));
   const r=await fetch(u,{headers:{Authorization:"Bearer "+LS.get(K.tok),"Content-Type":"application/json"}});
   if(r.status===401||r.status===403)throw new Error("token");
@@ -162,7 +165,7 @@ async function load(){
     /* país y equipo solo vienen por día completo: si se cuenta «desde» una hora, se empieza al día siguiente */
     if(D0&&D0>R0.qs){const d=new Date(D0);d.setHours(24,0,0,0);sq={start:d.toISOString().replace(/\.\d+Z$/,"Z"),end:q.end};side.from=d}
     if(!side.from||side.from<new Date()){for(const p of["locations","systems","browsers","sizes"]){try{side[p]=(await api("/stats/"+p,Object.assign({limit:8},sq))).stats||[]}catch(e){side[p]=[]}await wait(400)}}else side.later=true
-    DATA={total,hits,side,known,at:new Date()};lastErr=""}
+    DATA={total,hits,side,known,sq,at:new Date()};lastErr="";SUB.old=SUB.c;SUB.c={};demoSide()}
   catch(e){lastErr=e.message==="token"?"token":e.message}
   busy=false;render()}
 
@@ -171,13 +174,13 @@ function group(){
   const apps={},byName={};
   const pv=DATA.hits.filter(h=>!h.event),ev=DATA.hits.filter(h=>h.event&&!/^demo:/.test(h.path));
   pv.forEach(h=>{const key=h.path.replace(/^\/+|\/+$/g,"").split("/")[0]||"(inicio)";
-    const a=apps[key]||(apps[key]={key,title:"",visits:0,stats:[],ev:[],short:""});
-    a.visits+=h.count;if(!a.title&&h.title)a.title=h.title;a.stats=a.stats.concat(h.stats||[])});
-  (DATA.known||[]).forEach(h=>{const key=h.path.replace(/^\/+|\/+$/g,"").split("/")[0]||"(inicio)";if(!apps[key])apps[key]={key,title:h.title||"",visits:0,stats:[],ev:[],short:""}});
+    const a=apps[key]||(apps[key]={key,title:"",visits:0,stats:[],ev:[],short:"",pids:[]});
+    a.visits+=h.count;a.pids.push(h.path_id);if(!a.title&&h.title)a.title=h.title;a.stats=a.stats.concat(h.stats||[])});
+  (DATA.known||[]).forEach(h=>{const key=h.path.replace(/^\/+|\/+$/g,"").split("/")[0]||"(inicio)";if(!apps[key])apps[key]={key,title:h.title||"",visits:0,stats:[],ev:[],short:"",pids:[]}});
   Object.values(apps).forEach(a=>{a.title=a.title||a.key.replace(/^demo-/,"").replace(/-/g," ")});
   ev.forEach(h=>{const i=h.path.indexOf(" · ");const pre=i>0?h.path.slice(0,i):"Otras";const act=i>0?h.path.slice(i+3):h.path;
     let a=Object.values(apps).find(x=>(x.title+" "+x.key).toLowerCase().includes(pre.toLowerCase()));
-    if(!a)a=apps["ev:"+pre]||(apps["ev:"+pre]={key:"ev:"+pre,title:pre,visits:0,stats:[],ev:[]});
+    if(!a)a=apps["ev:"+pre]||(apps["ev:"+pre]={key:"ev:"+pre,title:pre,visits:0,stats:[],ev:[],pids:[]});
     a.short=pre;a.ev.push({act,n:h.count,stats:h.stats})});
   const list=Object.values(apps).map(a=>{const hh=localHourly(a.stats).concat(...a.ev.map(e=>localHourly(e.stats)));
     a.last=hh.length?Math.max(...hh.map(x=>+x.t))+3599e3:0;if(a.last>Date.now())a.last=Date.now();
@@ -188,10 +191,37 @@ function group(){
 /* ---------- demos enviadas (enlaces ?de=nombre) ---------- */
 function demos(){const P={};
   DATA.hits.filter(h=>h.event&&/^demo:/.test(h.path)).forEach(h=>{const parts=h.path.slice(5).split(" · ");if(parts.length<3)return;const [who,app,...rest]=parts;const act=rest.join(" · ");
-    const p=P[who]||(P[who]={who,apps:{},last:0});const a=p.apps[app]||(p.apps[app]={app,opens:0,max:0,acts:[]});
+    const p=P[who]||(P[who]={who,apps:{},last:0});const a=p.apps[app]||(p.apps[app]={app,opens:0,max:0,acts:[],open:[],all:[]});a.all.push(h.path_id);if(/^abrió (la app|el portafolio)$/.test(act))a.open.push(h.path_id);
     const hh=localHourly(h.stats);const l=hh.length?Math.max(...hh.map(x=>+x.t))+3599e3:0;if(l>p.last)p.last=Math.min(l,Date.now());
-    let m;if(act==="abrió la app")a.opens+=h.count;else if(m=act.match(/^usó (\d+) min$/))a.max=Math.max(a.max,+m[1]);else a.acts.push([act,h.count])});
+    let m;if(act==="abrió la app"||act==="abrió el portafolio")a.opens+=h.count;else if(m=act.match(/^usó (\d+) min$/))a.max=Math.max(a.max,+m[1]);else a.acts.push([act,h.count])});
   return Object.values(P).sort((a,b)=>b.last-a.last)}
+
+/* ---------- desde dónde y equipo de UNA app o demo (include_paths) ---------- */
+const SUB={c:{},old:{}};/* caché de esta carga; mientras llega lo nuevo se muestra lo de la carga anterior (sin parpadeo) */
+const RN=(()=>{try{return new Intl.DisplayNames(["es"],{type:"region"})}catch(e){return null}})();
+function locItems(x){return(x||[]).filter(s=>s.count>0).map(s=>{const c=String(s.id||"").split("-")[0].toUpperCase();let n=s.name||s.id||"?";try{if(RN&&/^[A-Z]{2}$/.test(c))n=RN.of(c)}catch(e){}return[(flag(c)+n).trim(),s.count]})}
+function sideFor(id,pids,pages){/* devuelve lo que ya llegó, o null y lo pide */
+  const S=DATA&&DATA.side;if(!S||S.later||!pids||!pids.length)return{none:true};
+  id=per+"|"+(LS.get("pav-desde")||"")+"|"+id;const prev=SUB.old[id]&&SUB.old[id].done?SUB.old[id]:null;
+  const c=SUB.c[id];if(c)return c.done?c:prev;
+  const o=SUB.c[id]={done:false},mine=SUB.c;
+  if(prev)Object.assign(o,prev,{done:false});
+  (async()=>{for(const p of pages){try{o[p]=(await api("/stats/"+p,Object.assign({limit:p==="locations"?12:6,include_paths:pids.join(",")},DATA.sq))).stats||[]}catch(e){o[p]=null}}o.done=true;if(SUB.c===mine)render()})();
+  return prev}
+function dayNote(){const S=DATA.side;return S.from?`El país y el equipo se guardan por día completo: con «Empezar a contar» se ven desde el ${S.from.getDate()} ${MES[S.from.getMonth()]}.`:"El país y el equipo se guardan por día completo."}
+function appSide(a){
+  if(DATA.side.later)return`<h3>Desde dónde</h3><p class="note">Aparecerá desde mañana: el país se guarda por día completo y hoy empezaste a contar.</p>`;
+  if(!a.pids.length)return`<h3>Desde dónde</h3><p class="note">Sin visitas en estos días.</p>`;
+  const r=sideFor("app:"+a.key,a.pids,["locations","systems","sizes"]);
+  if(!r)return`<h3>Desde dónde</h3><p class="empty">Cargando…</p>`;
+  let s=`<h3>Desde dónde</h3>${r.locations===null?'<p class="note">No pude cargarlo ahora.</p>':barsList(locItems(r.locations),a.col)}`;
+  s+=`<h3>Con qué equipo</h3><div class="list2"><div><h3 class="note" style="margin:0 0 8px">Sistema</h3>${r.systems?barsList(r.systems.filter(x=>x.count>0).map(x=>[x.name||x.id,x.count]),a.col):'<p class="note">—</p>'}</div><div><h3 class="note" style="margin:0 0 8px">Pantalla</h3>${r.sizes?barsList(r.sizes.filter(x=>x.count>0).map(x=>[sizeName(x.name||x.id),x.count]),a.col):'<p class="note">—</p>'}</div></div>`;
+  return s+`<p class="note">${dayNote()} Cuenta personas distintas por día, por eso puede sumar distinto que las visitas.</p>`}
+function demoSide(){/* países de las demos: se piden en segundo plano después de la carga */
+  if(!DATA||DATA.side.later)return;demos().forEach(p=>Object.values(p.apps).forEach(a=>sideFor("demo:"+p.who+"|"+a.app,a.open.length?a.open:a.all,["locations"])))}
+function demoLoc(p,a){if(DATA.side.later)return"";const r=sideFor("demo:"+p.who+"|"+a.app,a.open.length?a.open:a.all,["locations"]);
+  if(!r)return' <span class="dloc">…</span>';if(r.none||!r.locations)return"";const L=locItems(r.locations);if(!L.length)return' <span class="dloc">→ país aún sin datos</span>';
+  return' <span class="dloc">→ '+L.slice(0,3).map(([n,c])=>esc(n)+(L.length>1?" "+c:"")).join(" · ")+"</span>"}
 /* ---------- dibujos ---------- */
 function barsChart(vals,labels,h=150){
   const W=340,H=h,pb=20,pt=14,max=Math.max(1,...vals),n=vals.length,gw=W/n,bw=Math.max(3,Math.min(26,gw*.62));
@@ -259,14 +289,14 @@ function render(){
   if(!D.length)h+=`<p class="empty">Nadie ha abierto todavía un enlace de demo en este periodo.</p><p class="note">Manda tus apps con <b>?de=nombre</b> al final del enlace, por ejemplo …/demo-escapada-a-toledo/?de=cata</p>`;
   D.forEach((p,i)=>{h+=`<div class="demo-p"><div class="dp-h"><span class="av" style="background:${COLS[(i+3)%COLS.length]}">${esc(p.who[0].toUpperCase())}</span><span class="an"><b>${esc(p.who[0].toUpperCase()+p.who.slice(1))}</b><small>Última vez ${p.last?ago(p.last):"—"}</small></span></div>`;
     Object.values(p.apps).forEach(a=>{const top=a.acts.sort((x,y)=>y[1]-x[1]).slice(0,6);
-      h+=`<div class="dp-a"><b>${esc(a.app)}</b> <span class="note">· abrió ${a.opens} ${a.opens===1?"vez":"veces"}${a.max?" · llegó a "+a.max+" min seguidos":""}</span>${top.length?barsList(top,COLS[(i+3)%COLS.length]):'<div class="empty">Solo la abrió, sin tocar nada.</div>'}</div>`});
+      h+=`<div class="dp-a"><b>${esc(a.app)}</b>${demoLoc(p,a)} <span class="note">· abrió ${a.opens} ${a.opens===1?"vez":"veces"}${a.max?" · llegó a "+a.max+" min seguidos":""}</span>${top.length?barsList(top,COLS[(i+3)%COLS.length]):'<div class="empty">Solo la abrió, sin tocar nada.</div>'}</div>`});
     h+="</div>"});
   h+="</div></section>";
   /* desde dónde y equipos */
-  const S=DATA.side;const tl=x=>(x||[]).filter(s=>s.count>0).map(s=>[(s.name||s.id||"?"),s.count]);const RN=(()=>{try{return new Intl.DisplayNames(["es"],{type:"region"})}catch(e){return null}})();const tloc=x=>(x||[]).filter(s=>s.count>0).map(s=>{const c=String(s.id||"").split("-")[0].toUpperCase();let n=s.name||s.id||"?";try{if(RN&&/^[A-Z]{2}$/.test(c))n=RN.of(c)}catch(e){}return[(flag(c)+n).trim(),s.count]});
+  const S=DATA.side;const tl=x=>(x||[]).filter(s=>s.count>0).map(s=>[(s.name||s.id||"?"),s.count]);const tloc=locItems;
   if(S.later)h+=`<section class="card"><div class="ch"><h2>Desde dónde y con qué equipo</h2></div><div class="cb"><p class="empty">Aparecerá desde mañana. GoatCounter cuenta el país y el equipo por día completo, así que el día en que empezaste a contar no se puede separar.</p></div></section>`;
-  else{  h+=`<section class="card"><div class="ch"><h2>Desde dónde</h2><em>país aproximado</em></div><div class="cb">${barsList(tloc(S.locations),"var(--ac2)")}</div></section>`;
-  h+=`<section class="card"><div class="ch"><h2>Con qué equipo</h2></div><div class="cb"><div class="list2"><div><h3 class="note" style="margin:0 0 8px">Sistema</h3>${barsList(tl(S.systems),"var(--ok)")}</div><div><h3 class="note" style="margin:0 0 8px">Navegador</h3>${barsList(tl(S.browsers),"#c9a7ff")}</div></div>
+  else{  h+=`<section class="card"><div class="ch"><h2>Desde dónde</h2><em>todas las apps juntas</em></div><div class="cb">${barsList(tloc(S.locations),"var(--ac2)")}<p class="note">Suma todas las apps, las demos y el portafolio (país aproximado). El de cada app está en su detalle, en «Tus apps», y el de cada demo, en «Demos y promoción». ${dayNote()}</p></div></section>`;
+  h+=`<section class="card"><div class="ch"><h2>Con qué equipo</h2><em>todas las apps juntas</em></div><div class="cb"><div class="list2"><div><h3 class="note" style="margin:0 0 8px">Sistema</h3>${barsList(tl(S.systems),"var(--ok)")}</div><div><h3 class="note" style="margin:0 0 8px">Navegador</h3>${barsList(tl(S.browsers),"#c9a7ff")}</div></div>
     <h3 class="note" style="margin:14px 0 8px">Pantalla</h3>${barsList((S.sizes||[]).filter(s=>s.count>0).map(s=>[sizeName(s.name||s.id),s.count]),"#6fd6e8")}</div></section>`;
   }
 h+='<p class="priv">Datos anónimos: sin nombres, sin cookies y sin ubicación exacta.</p></div>';
@@ -292,7 +322,7 @@ function detail(a){
   if(cat.other.length)s+=`<h3>Otras acciones</h3>${barsList(srt(cat.other),a.col)}`;
   if(cat.style.length)s+=`<h3>Estilo elegido</h3>${barsList(srt(cat.style),a.col)}`;
   if(!a.ev.length)s+='<p class="note">Esta app todavía no tiene el contador de acciones; solo se ven sus visitas.</p>';
-  return s}
+  return s+appSide(a)}
 function bind(){
   document.querySelectorAll("[data-per]").forEach(b=>b.onclick=()=>{per=b.dataset.per;LS.set(K.per,per);DATA=null;render();load()});
   document.querySelectorAll("[data-app]").forEach(b=>b.onclick=()=>{openApp=openApp===b.dataset.app?"":b.dataset.app;LS.set(K.open,openApp);render()});
@@ -315,7 +345,7 @@ function start(){render();load();clearInterval(timer);timer=setInterval(()=>{if(
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&(demo||LS.get(K.tok))){load()}else if(DATA)render()});
 
 /* ---------- datos de ejemplo ---------- */
-function DEMO(path){
+function DEMO(path,params){
   const today=new Date(),days=[];const r=range();const d=new Date(r.start+"T12:00:00");for(let i=0;i<r.days;i++){days.push(ymd(d));d.setDate(d.getDate()+1)}
   const rnd=(s=>()=>(s=(s*16807)%2147483647)/2147483647)(42);
   const mk=(scale,peak)=>days.map((day,i)=>{const hourly=new Array(24).fill(0);let tot=0;for(let h=7;h<23;h++){const v=Math.round(rnd()*scale*(Math.abs(h-peak)<3?2:.4)*(i>days.length-3?1.6:1));hourly[h]=v;tot+=v}return{day,daily:tot,hourly}});
@@ -326,10 +356,15 @@ function DEMO(path){
     app("/demo-escapada-a-toledo/","Escapada a Toledo",.6,11,"Toledo",[["pestaña Ruta",9],["pestaña Mapa",6],["pestaña Comer",4],["abrió parada: Catedral Primada",3],["abrió parada: Museo del Greco",2],["abrió parada: Puente de San Martín",1],["cómo llegar: Ave Fénix",2],["cómo llegar: Obrador Santo Tomé",1],["usó «Dónde estoy»",3],["usó 1 min",5],["usó 5 min",3],["usó 15 min",1],["estilo: noche",1]]);
     app("/demo-mis-vacaciones/","Mis Vacaciones",.5,20,"Mis Vacaciones",[]);
     app("/demo-escapada-a-europa/","Escapada a Europa",.3,9,"Europa",[]);
-    [["demo:cata · Toledo · abrió la app",3],["demo:cata · Toledo · pestaña Mapa",2],["demo:cata · Toledo · usó «Dónde estoy»",1],["demo:cata · Toledo · abrió parada: Catedral Primada",1],["demo:cata · Toledo · usó 5 min",1],["demo:cata · Mis Vacaciones · abrió la app",1]].forEach(([p,n])=>H.push({path:p,title:p,event:true,count:n,path_id:id++,stats:mk(n/(days.length*6),16)}));
+    [["demo:cata · Toledo · abrió la app",3],["demo:cata · Toledo · pestaña Mapa",2],["demo:cata · Toledo · usó «Dónde estoy»",1],["demo:cata · Toledo · abrió parada: Catedral Primada",1],["demo:cata · Toledo · usó 5 min",1],["demo:cata · Mis Vacaciones · abrió la app",1],["demo:portafolio · Portafolio · abrió el portafolio",2],["demo:portafolio · Portafolio · tocó: Lima Familia",1]].forEach(([p,n])=>H.push({path:p,title:p,event:true,count:n,path_id:id++,stats:mk(n/(days.length*6),16)}));
     return{hits:H,more:false,total:0}}
   const S={locations:[["ES","Spain",18],["CL","Chile",6],["PT","Portugal",2]],systems:[["ios","iOS",15],["android","Android",9],["win","Windows",2]],browsers:[["safari","Safari",14],["chrome","Chrome",11],["ff","Firefox",1]],sizes:[["phone","phone",22],["desktop","desktop",3],["tablet","tablet",1]]};
-  const k=path.split("/").pop();return{stats:(S[k]||[]).map(([id,name,count])=>({id,name,count})),more:false}}
+  const k=path.split("/").pop();
+  if(params&&params.include_paths){const n=String(params.include_paths).split(",").reduce((s,x)=>s+ +x,0);
+    const L=[[["ES","Spain",4],["CL","Chile",1]],[["PE","Peru",3]],[["CL","Chile",2]],[["PT","Portugal",2],["ES","Spain",1]]][n%4];
+    const P={locations:L,systems:[[["android","Android",3]],[["ios","iOS",2],["android","Android",1]]][n%2],sizes:[[["phone","phone",3]],[["phone","phone",2],["desktop","desktop",1]]][n%2]};
+    return{stats:(P[k]||[]).map(([id,name,count])=>({id,name,count})),more:false}}
+  return{stats:(S[k]||[]).map(([id,name,count])=>({id,name,count})),more:false}}
 
 if(LS.get(K.tok))start();else setup();
 if("serviceWorker"in navigator&&/github\.io$/.test(location.hostname))navigator.serviceWorker.register("sw.js");
