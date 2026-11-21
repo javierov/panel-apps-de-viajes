@@ -305,6 +305,7 @@ function render(){
   if(A)h+=appScreen(A,D);else if(V.demos)h+=demosScreen(D);else h+=homeScreen(apps,D);
   h+=(inner?`<button class="btn g back2" id="bk2">${IC.back} Volver a todas las apps</button>`:"")+'<p class="priv">Datos anónimos: sin nombres, sin cookies y sin ubicación exacta.</p></div>';
   const R=$("#root");R.classList.toggle("noanim",!ANIM);R.innerHTML=h;bind();ANIM=false}
+const SHOW_DEMOS=false;/* «Demos y promoción» oculto por ahora (Javier, 21 nov): cambiar a true para volver a mostrarlo */
 function homeScreen(apps,D){
   const visits=apps.filter(a=>!a.folio).reduce((s,a)=>s+a.visits,0),acts=apps.reduce((s,a)=>s+a.actions,0),used=apps.filter(a=>!a.folio&&(a.visits||a.actions)).length;
   let h=kpis([[visits,visits===1?"visita":"visitas"],[acts,acts===1?"toque":"toques"],[used,used===1?"app usada":"apps usadas"]]);
@@ -315,7 +316,7 @@ function homeScreen(apps,D){
     h+=`<div class="app"><button class="ah" data-app="${esc(a.key)}">${avatar(a)}
       <span class="an"><b>${esc(a.title)}</b><small>${lastTxt(a)}</small></span>${per==="hoy"?"":spark(sv,a.col)}
       <span class="am"><b>${a.visits}</b><span>${a.folio?(a.visits===1?"apertura":"aperturas"):(a.visits===1?"visita":"visitas")}</span></span>${IC.next}</button></div>`});
-  h+=`<div class="app"><button class="ah" data-demos="1"><span class="av" style="background:#ff9f8a">★</span><span class="an"><b>Demos y promoción</b><small>${D.length?D.length+(D.length===1?" persona abrió un enlace con ?de=":" personas abrieron enlaces con ?de="):"Nadie ha abierto un enlace de demo en este periodo"}</small></span>${IC.next}</button></div>`;
+  if(SHOW_DEMOS)h+=`<div class="app"><button class="ah" data-demos="1"><span class="av" style="background:#ff9f8a">★</span><span class="an"><b>Demos y promoción</b><small>${D.length?D.length+(D.length===1?" persona abrió un enlace con ?de=":" personas abrieron enlaces con ?de="):"Nadie ha abierto un enlace de demo en este periodo"}</small></span>${IC.next}</button></div>`;
   h+="</div></section>";
   /* todas juntas */
   h+=`<h2 class="sec">Todas las apps juntas</h2>`;
