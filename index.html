@@ -180,6 +180,10 @@ async function load(){
 /* ---------- agrupar por app ---------- */
 /* clave de la app según la ruta: /demo-x/… → «demo-x»; las apps guardadas dentro del portafolio (/apps/s21-bny/…) → «apps/s21-bny» */
 function appKey(p){const seg=String(p).replace(/^\/+|\/+$/g,"").split("/");return(seg[0]==="apps"&&seg[1]?"apps/"+seg[1]:seg[0])||"(inicio)"}
+/* a qué app va un evento «APP · …»: primero la que tiene esa PALABRA en el título (Europa → «Escapada a Europa»),
+   después la que la tiene dentro del título, y solo al final por la ruta (si no, «Europa» caía en /viajeaeuropa-mbfr) */
+function matchPre(apps,pre){const L=Object.values(apps),p=pre.toLowerCase(),w=new RegExp("(^|[^\\p{L}])"+p.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"($|[^\\p{L}])","iu");
+  return L.find(x=>w.test(x.title))||L.find(x=>x.title.toLowerCase().includes(p))||L.find(x=>x.key.toLowerCase().includes(p))}
 function group(){
   const apps={},byName={};
   const pv=DATA.hits.filter(h=>!h.event),ev=DATA.hits.filter(h=>h.event&&!/^demo:/.test(h.path));
@@ -189,7 +193,7 @@ function group(){
   (DATA.known||[]).forEach(h=>{const key=appKey(h.path);if(!apps[key])apps[key]={key,title:h.title||"",visits:0,stats:[],ev:[],short:"",pids:[]}});
   Object.values(apps).forEach(a=>{a.title=a.title||a.key.replace(/^demo-/,"").replace(/-/g," ")});
   ev.forEach(h=>{const i=h.path.indexOf(" · ");const pre=i>0?h.path.slice(0,i):"Otras";const act=i>0?h.path.slice(i+3):h.path;
-    let a=Object.values(apps).find(x=>(x.title+" "+x.key).toLowerCase().includes(pre.toLowerCase()));
+    let a=matchPre(apps,pre);
     if(!a)a=apps["ev:"+pre]||(apps["ev:"+pre]={key:"ev:"+pre,title:pre,visits:0,stats:[],ev:[],pids:[]});
     a.short=pre;a.ev.push({act,n:h.count,stats:h.stats})});
   /* el portafolio solo manda eventos «demo:<tag> · Portafolio · …»: se muestra como una app más */
