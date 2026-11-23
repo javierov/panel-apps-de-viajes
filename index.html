@@ -59,6 +59,7 @@ header{position:sticky;top:0;z-index:5;background:rgb(11 12 15/.92);backdrop-fil
 .chev{width:18px;height:18px;flex:none;color:var(--mute);transition:transform .2s}
 .ah[aria-expanded=true] .chev{transform:rotate(180deg)}
 .noanim .bar .bt i{animation:none}
+.bar.zero .bl,.bar.zero .bv{opacity:.45}
 .flg{width:20px;height:14px;object-fit:cover;border-radius:2px;vertical-align:-2px;margin-right:7px;box-shadow:0 0 0 1px rgb(255 255 255/.12)}
 .ad{padding:0 14px 14px}.cb.ad{padding-top:0}.cb.ad>h3:first-child{margin-top:6px}
 .hd h1.sm{font-size:20px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hd .av{width:38px;height:38px;border-radius:10px;font-size:17px}
@@ -241,6 +242,18 @@ function demoSide(){/* países de las demos: se piden en segundo plano después 
 function demoLoc(p,a){if(DATA.side.later)return"";const r=sideFor("demo:"+p.who+"|"+a.app,a.open.length?a.open:a.all,["locations"]);
   if(!r)return' <span class="dloc">…</span>';if(r.none||!r.locations)return"";const L=locItems(r.locations);if(!L.length)return' <span class="dloc">→ país aún sin datos</span>';
   return' <span class="dloc">→ '+L.slice(0,3).map(([n,c,fl])=>fl+esc(n)+(L.length>1?" "+c:"")).join(" · ")+"</span>"}
+/* ---------- pestañas que trae cada app: se leen del menú de su propia página (#nav [data-go]) ---------- */
+const MENU={};/* clave → {tabs:[…]} o {fail:true} */
+function menuFor(key){if(!key||/^\(|^ev:/.test(key))return{fail:true};
+  if(MENU[key])return MENU[key].done?MENU[key]:null;
+  try{const c=JSON.parse(LS.get("pav-menu:"+key)||"null");if(c&&Date.now()-c.at<6*3600e3){MENU[key]=Object.assign({done:true},c);return MENU[key]}}catch(e){}
+  const o=MENU[key]={done:false};
+  fetch("../"+key.split("/").map(encodeURIComponent).join("/")+"/",{cache:"no-store"}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{
+    const d=new DOMParser().parseFromString(t,"text/html");
+    const tabs=[...d.querySelectorAll("#nav [data-go]")].map(b=>b.textContent.replace(/\s+/g," ").trim()).filter(Boolean);
+    if(!tabs.length)throw 0;o.tabs=[...new Set(tabs)];o.at=Date.now();LS.set("pav-menu:"+key,JSON.stringify({tabs:o.tabs,at:o.at}))
+  }).catch(()=>{o.fail=true}).finally(()=>{o.done=true;render()});
+  return null}
 /* ---------- dibujos ---------- */
 function barsChart(vals,labels,h=150,col){
   const W=340,H=h,pb=20,pt=14,max=Math.max(1,...vals),n=vals.length,gw=W/n,bw=Math.max(3,Math.min(26,gw*.62));
@@ -254,8 +267,8 @@ function barsChart(vals,labels,h=150,col){
 function spark(vals,col){const W=64,H=28,max=Math.max(1,...vals),n=vals.length;if(n<2)return"";
   const pts=vals.map((v,i)=>[(i/(n-1))*W,H-2-(H-6)*v/max]);const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join("");
   return `<svg class="spark" viewBox="0 0 ${W} ${H}"><path d="${d} L${W} ${H} L0 ${H}Z" fill="${col}" opacity=".15"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/></svg>`}
-function barsList(items,col){if(!items.length)return'<div class="empty">Todavía nada.</div>';const max=Math.max(...items.map(x=>x[1]));
-  return '<div class="bars">'+items.map(([l,v,h])=>`<div class="bar"><span class="bl">${h||""}${esc(l)}</span><span class="bv">${v}</span><span class="bt"><i style="width:${Math.max(4,100*v/max)}%;background:${col||"var(--ac)"}"></i></span></div>`).join("")+"</div>"}
+function barsList(items,col){if(!items.length)return'<div class="empty">Todavía nada.</div>';const max=Math.max(1,...items.map(x=>x[1]));
+  return '<div class="bars">'+items.map(([l,v,h])=>`<div class="bar${v?"":" zero"}"><span class="bl">${h||""}${esc(l)}</span><span class="bv">${v}</span><span class="bt"><i style="width:${v?Math.max(4,100*v/max):0}%;background:${col||"var(--ac)"}"></i></span></div>`).join("")+"</div>"}
 function heat(hh,col){const by=new Array(24).fill(0);hh.forEach(x=>{by[x.t.getHours()]+=x.n});const max=Math.max(1,...by);
   return `<div class="heat">${by.map((v,h)=>`<i title="${h}:00 · ${v}" style="${v?`background:${col};opacity:${.25+.75*v/max}`:""}"></i>`).join("")}</div><div class="hl"><span>0 h</span><span>6</span><span>12</span><span>18</span><span>23 h</span></div>`}
 const flag=c=>{c=String(c||"").split("-")[0].toUpperCase();return /^[A-Z]{2}$/.test(c)?String.fromCodePoint(...[...c].map(x=>127397+x.charCodeAt(0)))+" ":""};
@@ -363,7 +376,13 @@ function detail(a){
   let s=`<h3>A qué hora la usan</h3>${heat(hh,a.col)}`;
   if(a.folio){s+=`<h3>Apps que tocaron</h3>${barsList(srt(cat.tap||[]),a.col)}`;return s}
   s+=`<h3>Cuánto rato seguido</h3><div class="steps">${[1,5,15,30,60].map(m=>`<div class="step${cat.time[m]?" on":""}"><b>${cat.time[m]||0}</b><span>${m} min</span></div>`).join("")}</div><p class="note">Veces que alguien llegó a ese tiempo con la app en pantalla.</p>`;
-  s+=`<h3>Pestañas</h3>${barsList(srt(cat.tab),a.col)}`;
+  const M=menuFor(a.key);
+  if(M&&M.tabs){const n={};cat.tab.forEach(([t,v])=>{n[t]=(n[t]||0)+v});
+    const inMenu=M.tabs.map(t=>[t,n[t]||0]),extra=srt(cat.tab.filter(([t])=>!M.tabs.includes(t)));
+    const unused=inMenu.filter(x=>!x[1]).length;
+    s+=`<h3>Pestañas</h3>${barsList(inMenu,a.col)}<p class="note">Todas las pestañas que trae la app, en el orden del menú${unused?` · ${unused===1?"1 sin usar":unused+" sin usar"}`:""}.</p>`;
+    if(extra.length)s+=`<h3>Otras páginas</h3>${barsList(extra,a.col)}`}
+  else s+=`<h3>Pestañas</h3>${M?"":'<p class="note">Leyendo el menú de la app…</p>'}${barsList(srt(cat.tab),a.col)}`;
   if(cat.stop.length)s+=`<h3>Paradas que abrieron</h3>${barsList(srt(cat.stop).slice(0,10),a.col)}`;
   if(cat.go.length)s+=`<h3>«Cómo llegar» a…</h3>${barsList(srt(cat.go).slice(0,10),a.col)}`;
   if(cat.other.length)s+=`<h3>Otras acciones</h3>${barsList(srt(cat.other),a.col)}`;
