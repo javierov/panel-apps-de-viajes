@@ -59,6 +59,13 @@ header{position:sticky;top:0;z-index:5;background:rgb(11 12 15/.92);backdrop-fil
 .chev{width:18px;height:18px;flex:none;color:var(--mute);transition:transform .2s}
 .ah[aria-expanded=true] .chev{transform:rotate(180deg)}
 .noanim .bar .bt i{animation:none}
+.perm{font-size:11px;font-weight:600;line-height:1;color:var(--ok);border:1px solid currentColor;border-radius:99px;padding:2px 7px;margin-left:6px;vertical-align:2px;white-space:nowrap}
+details.past>summary{list-style:none;cursor:pointer}details.past>summary::-webkit-details-marker{display:none}
+details.past>summary h2::after{content:" ▸";font-size:.7em;opacity:.6}details.past[open]>summary h2::after{content:" ▾"}
+details.past{opacity:.92}
+.btn.warn{border-color:#f0b35a;color:#f0b35a}
+.toast{position:fixed;left:50%;width:max-content;bottom:22px;transform:translateX(-50%);z-index:60;display:flex;gap:14px;align-items:center;background:#1d212b;border:1px solid #333a47;color:#e9edf5;padding:12px 16px;border-radius:14px;box-shadow:0 10px 30px rgb(0 0 0/.45);font-size:15px;max-width:92vw}
+.toast button{background:none;border:0;color:#8fb4ff;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;padding:4px}
 .bar.zero .bl,.bar.zero .bv{opacity:.45}
 .flg{width:20px;height:14px;object-fit:cover;border-radius:2px;vertical-align:-2px;margin-right:7px;box-shadow:0 0 0 1px rgb(255 255 255/.12)}
 .ad{padding:0 14px 14px}.cb.ad{padding-top:0}.cb.ad>h3:first-child{margin-top:6px}
@@ -173,10 +180,23 @@ async function load(){
     /* país y equipo solo vienen por día completo: si se cuenta «desde» una hora, se empieza al día siguiente */
     if(D0&&D0>R0.qs){const d=new Date(D0);d.setHours(24,0,0,0);sq={start:d.toISOString().replace(/\.\d+Z$/,"Z"),end:q.end};side.from=d}
     if(!side.from||side.from<new Date()){for(const p of["locations","systems","browsers","sizes"]){try{side[p]=(await api("/stats/"+p,Object.assign({limit:8},sq))).stats||[]}catch(e){side[p]=[]}await wait(400)}}else side.later=true
+    try{await loadAct()}catch(e){}
     if(!DATA)ANIM=true;DATA={total,hits,side,known,sq,at:new Date()};lastErr="";SUB.old=SUB.c;SUB.c={};demoSide()}
   catch(e){lastErr=e.message==="token"?"token":e.message}
   busy=false;render()}
 
+/* ---------- apps en uso y viajes terminados ----------
+   Una app pasa a «Viajes terminados» si nadie la usa en DIAS_SIN_USO días; vuelve sola a «Tus apps» en cuanto alguien la abre.
+   Las de USO PERMANENTE no pasan nunca: al crear una app de uso permanente, añadir aquí su clave (la primera parte de su dirección). */
+const DIAS_SIN_USO=5;
+const PERMANENTES={"(portafolio)":"Portafolio","viajes-por-catalunya":"Viajes por Catalunya"};
+let ACT=null;/* {at, hits}: lo de los últimos 90 días (se vuelve a pedir cada 15 min) */
+async function loadAct(){if(ACT&&Date.now()-ACT.at<15*60e3)return;
+  const s=new Date();s.setDate(s.getDate()-90);s.setHours(0,0,0,0);const q={start:s.toISOString().replace(/\.\d+Z$/,"Z"),end:new Date(Date.now()+60e3).toISOString().replace(/\.\d+Z$/,"Z")};
+  let hits=[],more=true,g=0;while(more&&g<6){const r=await api("/stats/hits",Object.assign({limit:100},q,hits.length?{exclude_paths:hits.map(h=>h.path_id).join(",")}:{}));hits=hits.concat(r.hits||[]);more=r.more;g++}
+  ACT={at:Date.now(),hits}}
+const lastDay=h=>(h.stats||[]).filter(x=>x.daily>0).map(x=>x.day).sort().pop()||"";
+function daysSince(day){if(!day)return 1e9;const a=new Date(day+"T12:00:00"),b=new Date();b.setHours(12,0,0,0);return Math.round((b-a)/864e5)}
 /* ---------- agrupar por app ---------- */
 /* clave de la app según la ruta: /demo-x/… → «demo-x»; las apps guardadas dentro del portafolio (/apps/s21-bny/…) → «apps/s21-bny» */
 function appKey(p){const seg=String(p).replace(/^\/+|\/+$/g,"").split("/");return(seg[0]==="apps"&&seg[1]?"apps/"+seg[1]:seg[0])||"(inicio)"}
@@ -191,7 +211,13 @@ function group(){
     const a=apps[key]||(apps[key]={key,title:"",visits:0,stats:[],ev:[],short:"",pids:[]});
     a.visits+=h.count;a.pids.push(h.path_id);if(!a.title&&h.title)a.title=h.title;a.stats=a.stats.concat(h.stats||[])});
   (DATA.known||[]).forEach(h=>{const key=appKey(h.path);if(!apps[key])apps[key]={key,title:h.title||"",visits:0,stats:[],ev:[],short:"",pids:[]}});
+  ((ACT&&ACT.hits)||[]).filter(h=>!h.event&&!/^demo:/.test(h.path)).forEach(h=>{const key=appKey(h.path);
+    const a=apps[key]||(apps[key]={key,title:h.title||"",visits:0,stats:[],ev:[],short:"",pids:[]});if(!a.title&&h.title)a.title=h.title;const d=lastDay(h);if(d>(a.lastDay||""))a.lastDay=d});
   Object.values(apps).forEach(a=>{a.title=a.title||a.key.replace(/^demo-/,"").replace(/-/g," ")});
+  ((ACT&&ACT.hits)||[]).filter(h=>h.event).forEach(h=>{let x;const d=lastDay(h);if(!d)return;
+    if(/^demo:[^·]+ · Portafolio · /.test(h.path))x=apps["(portafolio)"]||(apps["(portafolio)"]={key:"(portafolio)",title:"Portafolio",visits:0,stats:[],ev:[],short:"Portafolio",pids:[],folio:true});
+    else if(!/^demo:/.test(h.path)){const i=h.path.indexOf(" · ");if(i>0)x=matchPre(apps,h.path.slice(0,i))}
+    if(x&&d>(x.lastDay||""))x.lastDay=d});
   ev.forEach(h=>{const i=h.path.indexOf(" · ");const pre=i>0?h.path.slice(0,i):"Otras";const act=i>0?h.path.slice(i+3):h.path;
     let a=matchPre(apps,pre);
     if(!a)a=apps["ev:"+pre]||(apps["ev:"+pre]={key:"ev:"+pre,title:pre,visits:0,stats:[],ev:[],pids:[]});
@@ -202,7 +228,9 @@ function group(){
     if(act==="abrió el portafolio"){a.visits+=h.count;a.stats=a.stats.concat(h.stats||[]);a.pids.push(h.path_id)}else a.ev.push({act,n:h.count,stats:h.stats})});
   const list=Object.values(apps).map(a=>{const hh=localHourly(a.stats).concat(...a.ev.map(e=>localHourly(e.stats)));
     a.last=hh.length?Math.max(...hh.map(x=>+x.t))+3599e3:0;if(a.last>Date.now())a.last=Date.now();
-    a.actions=a.ev.filter(e=>!/^usó \d+ min$/.test(e.act)).reduce((s,e)=>s+e.n,0);return a});
+    a.actions=a.ev.filter(e=>!/^usó \d+ min$/.test(e.act)).reduce((s,e)=>s+e.n,0);
+    if(a.last&&ymd(new Date(a.last))>(a.lastDay||""))a.lastDay=ymd(new Date(a.last));
+    a.perm=!!PERMANENTES[a.key];a.idle=daysSince(a.lastDay);a.past=!a.perm&&a.idle>=DIAS_SIN_USO;return a});
   list.sort((a,b)=>b.last-a.last||b.visits-a.visits);
   list.forEach((a,i)=>a.col=COLS[i%COLS.length]);return list}
 
@@ -329,14 +357,17 @@ function homeScreen(apps,D){
   const visits=apps.filter(a=>!a.folio).reduce((s,a)=>s+a.visits,0),acts=apps.reduce((s,a)=>s+a.actions,0),used=apps.filter(a=>!a.folio&&(a.visits||a.actions)).length;
   let h=kpis([[visits,visits===1?"visita":"visitas"],[acts,acts===1?"toque":"toques"],[used,used===1?"app usada":"apps usadas"]]);
   const r=range();
+  const activas=apps.filter(a=>!a.past),pasadas=apps.filter(a=>a.past).sort((x,y)=>(y.lastDay||"").localeCompare(x.lastDay||""));
   h+=`<section class="card"><div class="ch"><h2>Tus apps</h2><em>toca una para ver todo lo suyo</em></div><div>`;
-  if(!apps.length)h+='<div class="cb empty">Sin visitas en este periodo.</div>';
-  apps.forEach(a=>{const dmap={};a.stats.forEach(s=>{dmap[s.day]=(dmap[s.day]||0)+(s.daily||0)});const d=new Date(r.start+"T12:00:00");const sv=[];for(let i=0;i<Math.min(r.days,30);i++){sv.push(dmap[ymd(d)]||0);d.setDate(d.getDate()+1)}
-    h+=`<div class="app"><button class="ah" data-app="${esc(a.key)}">${avatar(a)}
-      <span class="an"><b>${esc(a.title)}</b><small>${lastTxt(a)}</small></span>${per==="hoy"?"":spark(sv,a.col)}
-      <span class="am"><b>${a.visits}</b><span>${a.folio?(a.visits===1?"apertura":"aperturas"):(a.visits===1?"visita":"visitas")}</span></span>${IC.next}</button></div>`});
+  if(!activas.length)h+='<div class="cb empty">Ninguna app en uso estos días.</div>';
+  const fila=a=>{const dmap={};a.stats.forEach(s=>{dmap[s.day]=(dmap[s.day]||0)+(s.daily||0)});const d=new Date(r.start+"T12:00:00");const sv=[];for(let i=0;i<Math.min(r.days,30);i++){sv.push(dmap[ymd(d)]||0);d.setDate(d.getDate()+1)}
+    return`<div class="app"><button class="ah" data-app="${esc(a.key)}">${avatar(a)}
+      <span class="an"><b>${esc(a.title)}${a.perm?' <span class="perm">uso permanente</span>':""}</b><small>${a.past?"Sin uso desde hace "+a.idle+" días":lastTxt(a)}</small></span>${per==="hoy"?"":spark(sv,a.col)}
+      <span class="am"><b>${a.visits}</b><span>${a.folio?(a.visits===1?"apertura":"aperturas"):(a.visits===1?"visita":"visitas")}</span></span>${IC.next}</button></div>`};
+  activas.forEach(a=>h+=fila(a));
   if(SHOW_DEMOS)h+=`<div class="app"><button class="ah" data-demos="1"><span class="av" style="background:#ff9f8a">★</span><span class="an"><b>Demos y promoción</b><small>${D.length?D.length+(D.length===1?" persona abrió un enlace con ?de=":" personas abrieron enlaces con ?de="):"Nadie ha abierto un enlace de demo en este periodo"}</small></span>${IC.next}</button></div>`;
   h+="</div></section>";
+  if(pasadas.length)h+=`<details class="card past"${LS.get("pav-pasadas")==="1"?" open":""}><summary class="ch"><h2>Viajes terminados</h2><em>${pasadas.length} ${pasadas.length===1?"app":"apps"} · sin uso en ${DIAS_SIN_USO} días o más</em></summary><div>${pasadas.map(fila).join("")}</div><p class="note" style="padding:0 16px 14px">Si alguien vuelve a abrir una, sube sola a «Tus apps».</p></details>`;
   /* todas juntas */
   h+=`<h2 class="sec">Todas las apps juntas</h2>`;
   h+=actCard(apps.filter(a=>!a.folio).flatMap(a=>a.stats));
@@ -398,8 +429,12 @@ function bind(){
   document.querySelectorAll("[data-app]").forEach(b=>b.onclick=()=>{go("app="+encodeURIComponent(b.dataset.app))});
   document.querySelectorAll("[data-demos]").forEach(b=>b.onclick=()=>{go("demos")});
   ["#bk","#bk2"].forEach(x=>{$(x)&&($(x).onclick=back)});
+  document.querySelectorAll("details.past").forEach(d=>d.ontoggle=()=>LS.set("pav-pasadas",d.open?"1":"0"));
   $("#rf")&&($("#rf").onclick=load);
   $("#cf")&&($("#cf").onclick=settings)}
+function toast(msg,undo){document.querySelectorAll(".toast").forEach(x=>x.remove());const t=document.createElement("div");t.className="toast";
+  t.innerHTML=`<span>${esc(msg)}</span>${undo?'<button type="button">Deshacer</button>':""}`;document.body.appendChild(t);
+  const kill=setTimeout(()=>t.remove(),12000);if(undo)t.querySelector("button").onclick=()=>{clearTimeout(kill);t.remove();undo()}}
 function settings(){const d=document.createElement("div");d.className="sheet";
   d.innerHTML=`<div><h2>Ajustes</h2><p class="note" style="margin:0 0 12px">${demo?"Estás viendo datos de ejemplo.":"Token guardado en este celular."}</p>
   <button class="btn g" id="me" style="margin:0 0 10px">${LS.get("javierov-nostats")==="1"?"✓ Este equipo no cuenta en las estadísticas":"No contar mis visitas en este equipo"}</button>
@@ -410,8 +445,15 @@ function settings(){const d=document.createElement("div");d.className="sheet";
   <a class="btn g" style="text-align:center;text-decoration:none" href="https://javierov.goatcounter.com" target="_blank" rel="noopener">Abrir GoatCounter</a>
   <button class="btn g" id="cl">Cerrar</button></div>`;
   document.body.appendChild(d);d.onclick=e=>{if(e.target===d||e.target.id==="cl")d.remove()};
-  $("#desde").onclick=()=>{if(LS.get("pav-desde"))LS.del("pav-desde");else LS.set("pav-desde",new Date().toISOString().replace(/\.\d+Z$/,"Z"));d.remove();DATA=null;render();load()};
-  $("#me").onclick=()=>{if(LS.get("javierov-nostats")==="1")LS.del("javierov-nostats");else LS.set("javierov-nostats","1");$("#me").textContent=LS.get("javierov-nostats")==="1"?"✓ Este equipo no cuenta en las estadísticas":"No contar mis visitas en este equipo"};
+  /* hay que tocar dos veces (por si fue sin querer) y después se puede deshacer */
+  let armed=0;$("#desde").onclick=()=>{const b=$("#desde");
+    if(!armed){armed=setTimeout(()=>{armed=0;b.classList.remove("warn");b.textContent=LS.get("pav-desde")?"Volver a contar todo":"Empezar a contar desde ahora"},4000);b.classList.add("warn");b.textContent=LS.get("pav-desde")?"Toca otra vez: mostrar todo de nuevo":"Toca otra vez para confirmar";return}
+    clearTimeout(armed);const prev=LS.get("pav-desde");
+    if(prev)LS.del("pav-desde");else LS.set("pav-desde",new Date().toISOString().replace(/\.\d+Z$/,"Z"));
+    d.remove();DATA=null;render();load();
+    toast(prev?"Vuelves a ver todo.":"Ahora cuentas desde las "+pad(new Date().getHours())+":00.",()=>{if(prev)LS.set("pav-desde",prev);else LS.del("pav-desde");DATA=null;render();load()})};
+  let armed2=0;$("#me").onclick=()=>{if(LS.get("javierov-nostats")==="1"&&!armed2){armed2=setTimeout(()=>{armed2=0;$("#me").classList.remove("warn");$("#me").textContent="✓ Este equipo no cuenta en las estadísticas"},4000);$("#me").classList.add("warn");$("#me").textContent="Toca otra vez: este equipo volverá a contar";return}
+    clearTimeout(armed2);armed2=0;$("#me").classList.remove("warn");if(LS.get("javierov-nostats")==="1")LS.del("javierov-nostats");else LS.set("javierov-nostats","1");$("#me").textContent=LS.get("javierov-nostats")==="1"?"✓ Este equipo no cuenta en las estadísticas":"No contar mis visitas en este equipo"};
   $("#nt").onclick=()=>{LS.del(K.tok);demo=false;DATA=null;d.remove();setup()}}
 function start(){render();load();clearInterval(timer);timer=setInterval(()=>{if(document.visibilityState==="visible")load()},60000)}
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&(demo||LS.get(K.tok))){load()}else if(DATA)render()});
